@@ -19,9 +19,8 @@ WORKDIR /opt/build
 COPY envs/cell2loc_env.yml .
 
 # Extract the pip: block from the conda env yml into a plain requirements.txt.
-# This avoids requiring conda in the image (leaner, faster builds) while
-# preserving the exact pinned versions from the cluster environment.
-RUN python - <<'PYEOF'
+# Installs pyyaml inline first so Python can parse the YAML.
+RUN pip install --no-cache-dir pyyaml && python - <<'PYEOF'
 import yaml
 with open("cell2loc_env.yml") as f:
     env = yaml.safe_load(f)
