@@ -20,7 +20,7 @@ RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')"
 
 WORKDIR /workspace
 COPY envs/renv-cside.lock ./renv.lock
-COPY r_scripts/renv/activate.R ./renv/activate.R
+COPY envs/activate-cside.R ./renv/activate.R
 
 # Bake the exact CSIDE-side dependency graph (including spacexr @ 698d5b0)
 # into the image at BUILD time — no network calls, no drift at runtime.
