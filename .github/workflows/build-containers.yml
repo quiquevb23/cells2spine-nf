@@ -1,6 +1,7 @@
 name: Build and Push Containers to GHCR
 
 on:
+  workflow_dispatch:  # Enables the "Run workflow" button in GitHub UI
   push:
     branches: [ "main" ]
     paths:
