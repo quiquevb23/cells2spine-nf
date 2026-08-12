@@ -7,7 +7,7 @@ COPY r_scripts/renv/activate.R ./renv/activate.R
 
 RUN R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
 
-COPY r_scripts/GSEA.R r_scripts/ORA.R r_scripts/ct_genexpr.R /usr/local/bin/
+COPY r_scripts/GSEA.R r_scripts/ORA.R /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.R
 
 ENTRYPOINT ["Rscript"]
