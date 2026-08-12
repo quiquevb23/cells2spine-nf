@@ -227,7 +227,6 @@ dependencies:
       - pyro-api==0.1.2
       - pyro-ppl==1.8.6
       - python-dateutil==2.8.2
-      - python-igraph==0.11.3
       - python-json-logger==2.0.7
       - python-multipart==0.0.6
       - pytorch-lightning==2.1.3
