@@ -1,0 +1,43 @@
+# Slurm / cluster artifacts
+logs/
+slurm-*.out
+*.slurm.out
+*.slurm.err
+output_*.out
+error_*.log
+
+# R renv local state (rebuilt in Docker, not committed)
+r_scripts/renv/library/
+r_scripts/renv/staging/
+r_scripts/renv/local/
+.Rproj.user/
+.Rhistory
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+
+# Nextflow runtime
+work/
+.nextflow/
+.nextflow.log*
+Nextflow_reports/
+*.nfhistory
+
+# Data / large binaries / scratch — never belongs in git
+*.h5ad
+*.h5
+*.rds
+*.RDS
+*.csv
+data/
+test_data/**/*.h5ad   # test fixtures added back explicitly later, see Phase 4
+tmp/
+scratch/
+
+# Editor cruft
+.vscode/
+.DS_Store
+*.save        # e.g. cell2loc_owndata.py.save — stray editor backup, exclude
