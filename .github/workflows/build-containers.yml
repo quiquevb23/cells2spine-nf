@@ -1,7 +1,7 @@
 name: Build and Push Containers to GHCR
 
 on:
-  workflow_dispatch:  # Enables the "Run workflow" button in GitHub UI
+  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
@@ -20,13 +20,13 @@ jobs:
       matrix:
         include:
           - name: cell2loc
-            file: docker/cell2loc/Dockerfile
+            file: docker/cell2loc/cells2spine-cell2loc
           - name: rpy2
-            file: docker/rpy2/Dockerfile
+            file: docker/rpy2/cells2spine-rpy2
           - name: r-cside
-            file: docker/r-cside/Dockerfile
+            file: docker/r-cside/cells2spine-r-cside
           - name: r-enrichment
-            file: docker/r-enrichment/Dockerfile
+            file: docker/r-enrichment/cells2spine-r-enrichment
 
     steps:
       - name: Checkout code
@@ -39,10 +39,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase repository owner
+        id: repo
+        run: |
+          echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ matrix.file }}
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/cells2spine-${{ matrix.name }}:latest
+          tags: ghcr.io/${{ steps.repo.outputs.owner_lc }}/cells2spine-${{ matrix.name }}:latest
