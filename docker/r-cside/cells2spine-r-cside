@@ -1,0 +1,32 @@
+# docker/r-cside/Dockerfile
+FROM r-base:4.4.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libxml2-dev \
+        libfontconfig1-dev \
+        libharfbuzz-dev \
+        libfribidi-dev \
+        libfreetype6-dev \
+        libpng-dev \
+        libtiff5-dev \
+        libjpeg-dev \
+        libgit2-dev \
+        pandoc \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')"
+
+WORKDIR /workspace
+COPY envs/renv-cside.lock ./renv.lock
+COPY r_scripts/renv/activate.R ./renv/activate.R
+
+# Bake the exact CSIDE-side dependency graph (including spacexr @ 698d5b0)
+# into the image at BUILD time — no network calls, no drift at runtime.
+RUN R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
+
+COPY r_scripts/CSIDE.R /usr/local/bin/CSIDE.R
+RUN chmod +x /usr/local/bin/CSIDE.R
+
+ENTRYPOINT ["Rscript"]
