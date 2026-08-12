@@ -5,7 +5,8 @@ WORKDIR /workspace
 COPY envs/renv-enrichment.lock ./renv.lock
 COPY envs/activate-enrichment.R ./renv/activate.R
 
-RUN R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
+RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" && \
+    R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
 
 COPY r_scripts/GSEA.R r_scripts/ORA.R /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.R

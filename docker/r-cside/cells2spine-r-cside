@@ -24,7 +24,8 @@ COPY envs/activate-cside.R ./renv/activate.R
 
 # Bake the exact CSIDE-side dependency graph (including spacexr @ 698d5b0)
 # into the image at BUILD time — no network calls, no drift at runtime.
-RUN R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
+RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" && \
+    R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
 
 COPY r_scripts/CSIDE.R /usr/local/bin/CSIDE.R
 RUN chmod +x /usr/local/bin/CSIDE.R
