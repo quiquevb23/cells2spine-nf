@@ -1,60 +1,23 @@
-# docker/cell2loc/Dockerfile
-FROM python:3.9-slim-bookworm AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        libhdf5-dev \
-        libgeos-dev \
-        libgl1 \
-        libxml2-dev \
-        curl \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+FROM condaforge/mambaforge:23.3.1-1
 
 WORKDIR /opt/build
+
 COPY envs/cell2loc_env.yml .
 
-# Extract the pip: block from the conda env yml into a plain requirements.txt.
-# Installs pyyaml inline first so Python can parse the YAML.
-RUN pip install --no-cache-dir pyyaml && python - <<'PYEOF'
-import yaml
-with open("cell2loc_env.yml") as f:
-    env = yaml.safe_load(f)
-pip_deps = []
-for dep in env.get("dependencies", []):
-    if isinstance(dep, dict) and "pip" in dep:
-        pip_deps = dep["pip"]
-with open("requirements.txt", "w") as f:
-    f.write("\n".join(pip_deps) + "\n")
-PYEOF
+# Let Mamba handle the entire environment solve
+RUN mamba env create -f cell2loc_env.yml -n cell2loc_env \
+    && mamba clean --all --yes
 
-RUN pip install --upgrade pip==23.3.1 setuptools==68.2.2 wheel==0.41.2 \
-    && pip install --no-cache-dir -r requirements.txt
-
-# --- Runtime stage ---
-FROM python:3.9-slim-bookworm
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libhdf5-103-1 \
-        libgeos-c1v5 \
-        libgl1 \
-        libxml2 \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=base /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
-COPY --from=base /usr/local/bin /usr/local/bin
+SHELL ["mamba", "run", "-n", "cell2loc_env", "/bin/bash", "-c"]
+ENV PATH=/opt/conda/envs/cell2loc_env/bin:$PATH
 
 WORKDIR /workspace
+
 COPY bin_python_staging/cell2loc_owndata.py \
      bin_python_staging/conversor_ref.py \
      bin_python_staging/conversor.py \
-     bin_python_staging/build_signatures.py \
      /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*.py
 
-ENTRYPOINT ["python3"]
+ENTRYPOINT ["mamba", "run", "-n", "cell2loc_env", "python3"]
