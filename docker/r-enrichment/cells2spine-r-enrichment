@@ -7,8 +7,10 @@ COPY envs/activate-enrichment.R ./renv/activate.R
 
 RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" && \
     R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
+    R -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager'); BiocManager::install('maSigPro')" && \
+    R -e "install.packages('optparse', repos = 'https://cloud.r-project.org')"
 
-COPY bin/GSEA.R bin/ORA.R /usr/local/bin/
+# Copy scripts from bin into system PATH
+COPY bin/GSEA.R bin/ORA.R bin/run_masigpro.R /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.R
 
-ENTRYPOINT ["Rscript"]
