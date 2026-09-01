@@ -13,9 +13,9 @@ ENV PATH=/opt/conda/envs/cell2loc_env/bin:$PATH
 
 WORKDIR /workspace
 
-COPY bin_python_staging/cell2loc_owndata.py \
-     bin_python_staging/conversor_ref.py \
-     bin_python_staging/conversor.py \
+COPY bin/cell2loc_owndata.py \
+     bin/conversor_ref.py \
+     bin/conversor.py \
      /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*.py

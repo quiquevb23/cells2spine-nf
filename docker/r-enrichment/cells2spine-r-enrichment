@@ -8,7 +8,7 @@ COPY envs/activate-enrichment.R ./renv/activate.R
 RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" && \
     R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
 
-COPY r_scripts/GSEA.R r_scripts/ORA.R /usr/local/bin/
+COPY bin/GSEA.R bin/ORA.R /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.R
 
 ENTRYPOINT ["Rscript"]

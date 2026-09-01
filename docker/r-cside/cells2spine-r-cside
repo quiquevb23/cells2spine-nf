@@ -27,7 +27,7 @@ COPY envs/activate-cside.R ./renv/activate.R
 RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" && \
     R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
 
-COPY r_scripts/CSIDE.R /usr/local/bin/CSIDE.R
+COPY bin/CSIDE.R /usr/local/bin/CSIDE.R
 RUN chmod +x /usr/local/bin/CSIDE.R
 
 ENTRYPOINT ["Rscript"]

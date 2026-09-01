@@ -12,23 +12,17 @@ SHELL ["mamba", "run", "-n", "rpy2_env", "/bin/bash", "-c"]
 ENV PATH=/opt/conda/envs/rpy2_env/bin:$PATH
 
 WORKDIR /workspace
-COPY bin_python_staging/ct_gene_expr.py \
-     bin_python_staging/differential_abundance_.py \
-     bin_python_staging/differential_abundance.py \
-     bin_python_staging/DA.py \
-     bin_python_staging/compare_cell2loc_rctd.py \
-     bin_python_staging/compare_DEGs.py \
-     bin_python_staging/compare_FE.py \
-     bin_python_staging/compare_gene_expr.py \
-     bin_python_staging/plot_global_FE_heatmaps.py \
-     bin_python_staging/validate_per_area_pseudobulk.py \
-     bin_python_staging/validate_per_celltype.py \
-     bin_python_staging/uncorrupt.py \
-     bin_python_staging/conversor_cside.py \
-     bin_python_staging/volcano_plot_deg.py \
-     bin_python_staging/functional_enrichment.py \
-     bin_python_staging/DEG_areas_pipeline.py \
-     bin_python_staging/VolcanoPlot_DEG_pipeline.py \
+COPY bin/ct_gene_expr.py \
+     bin/differential_abundance_.py \
+     bin/compare_cell2loc_rctd.py \
+     bin/compare_DEGs.py \
+     bin/compare_FE.py \
+     bin/compare_gene_expr.py \
+     bin/plot_global_FE_heatmaps.py \
+     bin/validate_per_area_pseudobulk.py \
+     bin/validate_per_celltype.py \
+     bin/DEG_areas_pipeline.py \
+     bin/VolcanoPlot_DEG_pipeline.py \
      /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*.py
