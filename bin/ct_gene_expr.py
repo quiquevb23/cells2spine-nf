@@ -47,6 +47,12 @@ def parse_args():
         help="Condition contrast order: test first, reference second"
     )
 
+    parser.add_argument(
+        '--delineation_dir', type=str, default="NO_DELINEATION",
+        help="Directory containing <sample>_manual_delineation.csv files. "
+             "Use NO_DELINEATION to process all spots as a single WHOLE_SAMPLE region."
+    )
+
     return parser.parse_args()
 
 def parse_conditions_map(conditions_list):
@@ -553,8 +559,10 @@ def main():
                 mean_expr = expr_only.mean(axis=0)  # mean per gene for this sample
 
                 # 🔹 Filter to genes present in CSIDE reference for this sample-area-celltype
+                ct_safe = ct.replace(" ", "_")
                 ref_gene_path = os.path.join(
-                    cside_dir, sample, "gene_expr_ct", area, f"{sample}_{ct}_gene_expr.csv"
+                    cside_dir, sample, area, "gene_expr_ct", ct_safe,
+                    f"CSIDE_{ct_safe}_expr.csv"
                 )
                 if os.path.exists(ref_gene_path):
                     df_ref = pd.read_csv(ref_gene_path, index_col=0)

@@ -31,10 +31,10 @@ def process(file_path, sample_out_dir, sample_name, sample_path):
 
     # Save coordinates for each sample
     #if 'array_row' in adata.obs and 'array_col' in adata.obs:
-    #    adata.obs[['array_row', 'array_col']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coordinates.csv"))
+    #    adata.obs[['array_row', 'array_col']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coords.csv"))
 
     if 'imagerow' in adata.obs and 'imagecol' in adata.obs:
-        adata.obs[['imagerow', 'imagecol']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coordinates.csv"))
+        adata.obs[['imagerow', 'imagecol']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coords.csv"))
 
 
     # Extract mapping of 'manual_delineation'

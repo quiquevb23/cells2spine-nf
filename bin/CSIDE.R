@@ -260,7 +260,7 @@ cat("Loading sc references")
 
 # Load reference data for both labels (dynamically)
 references <- lapply(conditions, function(cond) {
-  load_reference_data(cond, data_dir)
+  load_reference_data(cond, opt$output_base_dir)
 })
 names(references) <- conditions
 
@@ -308,14 +308,6 @@ names(pucks) <- samples
 ### LOAD SPATIAL REPS
 
 # Spatial samples are in data_dir + {sample}
-
-#Check if we need to remove this block:
-pucks <- lapply(samples, function(sample) {
-  sample_dir <- file.path(data_dir, sample)
-  cell2loc_dir <- file.path(cell2loc_main_dir, sample)
-  load_spatial_data(sample, sample_dir, cell2loc_dir)
-})
-names(pucks) <- samples
 
 
 #This block is correct (claude)
