@@ -433,28 +433,25 @@ def main():
     # Iterate samples
     for sample in samples:
         print(f"\n--- Processing sample {sample} ---")
-
         if sample not in conditions_map:
             raise ValueError(f"Sample {sample} has no condition in conditions_map!")
 
-        # Load manual delineation
-        delim_path = os.path.join(run_name, "data", sample, f"{sample}_manual_delineation.csv")
+        if args.delineation_dir != "NO_DELINEATION":
+            delim_path = os.path.join(args.delineation_dir, f"{sample}_manual_delineation.csv")
+            df_delineation = pd.read_csv(delim_path, index_col=0)
+            if df_delineation.columns[0] != "manual_delineation":
+                df_delineation.columns = ["manual_delineation"]
+            df_delineation.index.name = "barcode"
+            df_delineation.index = df_delineation.index.astype(str).str.strip()
+        else:
+            df_delineation = None
 
-        df_delineation = pd.read_csv(delim_path, index_col=0)
-
-        # Make sure the column is named correctly
-        if df_delineation.columns[0] != "manual_delineation":
-            df_delineation.columns = ["manual_delineation"]
-
-        # Ensure index is named
-        df_delineation.index.name = "barcode"
-        df_delineation.index = df_delineation.index.astype(str).str.strip()
         # Load weights and normalize per spot
         weights_path = os.path.join(run_name, "cell2location_map", sample, f"{sample}_cell2loc_weights.csv")
         if os.path.exists(weights_path):
             df_weights = pd.read_csv(weights_path, index_col=0)
             df_weights.index.name = "barcode"
-            df_weights.index = df_delineation.index.astype(str).str.strip()
+            df_weights.index = df_weights.index.astype(str).str.strip()
             # normalize weights per barcode to sum to 1
             df_weights = df_weights.div(df_weights.sum(axis=1) + 1e-6, axis=0)
         else:
@@ -474,7 +471,6 @@ def main():
             df_expr.index.name = "barcode"
             df_expr.index = df_expr.index.astype(str).str.strip()
 
-
             # Normalize gene expression by celltype abundance
             if df_weights is not None:
                 weight_cols = [c for c in df_weights.columns if c.endswith(ct)]
@@ -492,7 +488,12 @@ def main():
 
             # --- END INSERT ---
 
-            df_merged = df_delineation.merge(df_expr, left_index=True, right_index=True, how='inner')
+            if df_delineation is not None:
+                df_merged = df_delineation.merge(df_expr, left_index=True, right_index=True, how='inner')
+            else:
+                df_merged = df_expr.copy()
+                df_merged["manual_delineation"] = "WHOLE_SAMPLE"
+
             if df_merged.shape[0] == 0:
                 print(f"[warn] No overlapping barcodes for sample {sample}, ct {ct} (merge empty).")
                 continue

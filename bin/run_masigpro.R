@@ -10,32 +10,18 @@ suppressPackageStartupMessages({
 })
 
 option_list <- list(
-  make_option("--delineation_dir", type = "character"),
   make_option("--counts_dir", type = "character"),
-  make_option("--sample_metadata", type = "character",
-              help = "CSV with columns: sample_id,condition,time"),
-  make_option("--gene_list", type = "character", default = "NO_FILE",
-              help = "Optional newline-delimited gene list file(s), comma-separated"),
-  make_option("--samples", type = "character", default = "ALL",
-              help = "Comma-separated sample_ids to include, or ALL"),
-  make_option("--rois", type = "character", default = "Dorsal_gm,Medial_gm,Ventral_gm",
-              help = "Comma-separated ROI names matching delineation CSV values"),
+  make_option("--delineation_dir", type = "character", default = "NO_DELINEATION"),
+  make_option("--sample_metadata", type = "character"),
+  make_option("--gene_list", type = "character", default = "NO_FILE"),
+  make_option("--clusters", type = "character", default = "ALL_SPOTS",
+              help = "Comma-separated cluster labels to test, or ALL_SPOTS for whole-sample pseudobulk"),
   make_option("--outdir", type = "character", default = "masigpro_results")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 
-dir.create(opt$outdir, recursive = TRUE, showWarnings = FALSE)
-
-# -----------------------------
-# Sample metadata + optional restriction
-# -----------------------------
-sample_info <- read_csv(opt$sample_metadata, show_col_types = FALSE)
-
-if (opt$samples != "ALL") {
-  keep_samples <- strsplit(opt$samples, ",")[[1]]
-  sample_info <- sample_info %>% filter(sample_id %in% keep_samples)
-}
-stopifnot(nrow(sample_info) > 0)
+use_delineation <- opt$clusters != "ALL_SPOTS" && opt$delineation_dir != "NO_DELINEATION"
+roi_list <- if (use_delineation) strsplit(opt$clusters, ",")[[1]] else c("ALL_SPOTS")
 
 # -----------------------------
 # Gene list(s) of interest (optional — if NO_FILE, use all genes)
@@ -47,8 +33,6 @@ if (use_gene_filter) {
   cat("Loaded", length(genes_of_interest), "genes of interest\n")
 }
 
-roi_list <- strsplit(opt$rois, ",")[[1]]
-
 for (roi in roi_list) {
   cat("Running ROI:", roi, "\n")
 
@@ -58,31 +42,29 @@ for (roi in roi_list) {
   for (i in seq_len(nrow(sample_info))) {
     sample <- sample_info$sample_id[i]
     cat("  Sample:", sample, "\n")
-
-    mn_file <- file.path(opt$delineation_dir, paste0(sample, "_manual_delineation.csv"))
-    if (!file.exists(mn_file)) { warning("Missing delineation file for ", sample); next }
-    mn_data <- read.csv(mn_file)
-    mn_barcodes <- sub(".*_", "", mn_data$X[mn_data$manual_delineation == roi])
-
     counts_file <- file.path(opt$counts_dir, paste0(sample, "_counts.csv"))
-    if (!file.exists(counts_file)) { warning("Missing counts file for ", sample); next }
+    if (!file.exists(counts_file)) { warning("Missing counts for ", sample); next }
     counts_data <- read.csv(counts_file, row.names = 1, check.names = FALSE)
     colnames(counts_data) <- sub(".*_", "", colnames(counts_data))
 
-    mn_barcodes <- intersect(mn_barcodes, colnames(counts_data))
-    if (length(mn_barcodes) == 0) { warning("No cells in ROI for ", sample); next }
+    if (use_delineation) {
+      mn_file <- file.path(opt$delineation_dir, paste0(sample, "_manual_delineation.csv"))
+      if (!file.exists(mn_file)) { warning("Missing delineation for ", sample); next }
+      mn_data <- read.csv(mn_file)
+      barcodes <- intersect(sub(".*_", "", mn_data$X[mn_data$manual_delineation == roi]),
+                             colnames(counts_data))
+      if (length(barcodes) == 0) { warning("No spots in ", roi, " for ", sample); next }
+      sample_counts <- counts_data[, barcodes, drop = FALSE]
+    } else {
+      sample_counts <- counts_data   # whole-sample pseudobulk, no ROI filter
+    }
 
-    mn_counts <- counts_data[, mn_barcodes, drop = FALSE]
     pb <- matrix(rowSums(mn_counts), ncol = 1)
-    rownames(pb) <- rownames(mn_counts)
-    colnames(pb) <- sample
+    rownames(pb) <- rownames(sample_counts); colnames(pb) <- sample
     pb_list[[sample]] <- pb
-
-    meta_list[[sample]] <- tibble(
-      sample = sample,
-      condition = sample_info$condition[i],
-      time = sample_info$time[i]
-    )
+    meta_list[[sample]] <- tibble(sample = sample,
+                                   condition = sample_info$condition[i],
+                                   time = sample_info$time[i])
   }
 
   if (length(pb_list) < 2) {

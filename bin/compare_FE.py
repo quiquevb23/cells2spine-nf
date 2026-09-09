@@ -95,8 +95,9 @@ def compare_area_analysis(area, analysis, cell2loc_base, rctd_base, out_base):
     Compare a single analysis type (GSEA or ORA) for one area.
     Only Reactome CSVs considered.
     """
-    c2l_dir = os.path.join(cell2loc_base, analysis, area)
-    rctd_dir = os.path.join(rctd_base, analysis, area)
+    whole_sample = (area == "WHOLE_SAMPLE")
+    c2l_dir  = os.path.join(cell2loc_base, analysis) if whole_sample else os.path.join(cell2loc_base, analysis, area)
+    rctd_dir = os.path.join(rctd_base, analysis)     if whole_sample else os.path.join(rctd_base, analysis, area)
     if not os.path.isdir(c2l_dir):
         print(f"[WARN] Missing Cell2location FE dir: {c2l_dir}")
         return []
@@ -105,7 +106,8 @@ def compare_area_analysis(area, analysis, cell2loc_base, rctd_base, out_base):
         return []
 
     # gather cell types present in both (based on Reactome csv names)
-    rctd_files = [f for f in os.listdir(rctd_dir) if f.endswith("GO_BP.csv") and f.startswith(f"DEA_{area}_")]
+    rctd_files = [f for f in os.listdir(rctd_dir) if f.endswith("GO_BP.csv") and
+                  f.startswith(f"DEA_WHOLE_SAMPLE_" if whole_sample else f"DEA_{area}_")]
     cts = []
     for f in rctd_files:
         ct = extract_celltype_from_filename(f, area)

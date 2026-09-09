@@ -99,14 +99,15 @@ def compare_methods(df1, df2, area, ct, outdir, n_top=100):
 # ---------------------------------------------------------------------
 def main(args):
     area = args.area
+    whole_sample = (area == "WHOLE_SAMPLE")
     cell2loc_base = args.cell2loc_dir
     rctd_base = args.rctd_dir
     out_base = args.output_dir
     os.makedirs(out_base, exist_ok=True)
     top_n = args.top_n
 
-    c2l_dir = os.path.join(cell2loc_base, area)
-    rctd_dir = os.path.join(rctd_base, area)
+    c2l_dir  = cell2loc_base if whole_sample else os.path.join(cell2loc_base, area)
+    rctd_dir = rctd_base     if whole_sample else os.path.join(rctd_base, area)
 
     if not os.path.isdir(rctd_dir):
         print(f"[WARN] Missing CSIDE DEGs for {area}")
@@ -122,7 +123,7 @@ def main(args):
             m = re.match(r"DEA_(.+)_(.+)_limma\.csv", f)
             if m:
                 area_in_file, ct = m.groups()
-                if area_in_file == area:
+                if whole_sample or area_in_file == area:
                     cts.append(ct)
     cts = [
         ct for ct in cts
@@ -131,8 +132,9 @@ def main(args):
     print(f"cell types detected for area {area}:\n {cts}")
     summary_rows = []
     for ct in cts:
-        f1 = os.path.join(c2l_dir, f"DEA_{area}_{ct}_cell2loc_limma.csv")
-        f2 = os.path.join(rctd_dir, f"DEA_{area}_{ct}_limma.csv")
+        area_tag = "WHOLE_SAMPLE" if whole_sample else area
+        f1 = os.path.join(c2l_dir, f"DEA_{area_tag}_{ct}_cell2loc_limma.csv")
+        f2 = os.path.join(rctd_dir, f"DEA_{area_tag}_{ct}_limma.csv")
         df1, df2 = read_deg_table(f1), read_deg_table(f2)
         res = compare_methods(df1, df2, area, ct, out_base, n_top=top_n)
         if res:

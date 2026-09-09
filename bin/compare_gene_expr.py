@@ -162,6 +162,7 @@ def plot_topN_overlap(rctd_df, c2l_df, sample, area, ct, out_dir, maxN=200):
 
 def main(args):
     area = args.area
+    whole_sample = (area == "WHOLE_SAMPLE")
     cell2loc_base = args.cell2loc_dir
     rctd_base = args.rctd_dir
     out_base = args.output_dir
@@ -179,8 +180,12 @@ def main(args):
         return
 
     for sample in samples:
-        rctd_area_dir = os.path.join(rctd_base, sample, "gene_expr_ct", area)
-        c2l_area_dir = os.path.join(cell2loc_base, sample, "gene_expr_ct_mean", area)
+        if whole_sample:
+            rctd_area_dir = os.path.join(rctd_base, sample, "gene_expr_ct")
+            c2l_area_dir  = os.path.join(cell2loc_base, sample, "gene_expr_ct_mean")
+        else:
+            rctd_area_dir = os.path.join(rctd_base, sample, "gene_expr_ct", area)
+            c2l_area_dir = os.path.join(cell2loc_base, sample, "gene_expr_ct_mean", area)
 
         if not os.path.isdir(rctd_area_dir):
             print(f"[WARN] RCTD area directory missing for sample {sample}, area {area}: {rctd_area_dir}")

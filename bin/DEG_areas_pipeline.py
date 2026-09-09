@@ -26,6 +26,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="DEA by manually delineated areas")
 
     parser.add_argument("--ref_level", required=True)
+    parser.add_argument("--delineation_dir", type=str, default="NO_DELINEATION")
     parser.add_argument("--output_base_dir", required=True)
     parser.add_argument("--spatial_input", required=True)
     parser.add_argument("--samples", nargs="+", required=True)
@@ -66,25 +67,23 @@ adatas = []
 for sample in args.samples:
     print(f"Processing sample: {sample}")
 
-    delineation_file = data_dir / sample / f"{sample}_manual_delineation.csv"
-    if not delineation_file.exists():
-        raise FileNotFoundError(delineation_file)
-
-    df_delineation = pd.read_csv(delineation_file, names=["spot_id", "area"], header=0)
-
-    if not {"spot_id", "area"}.issubset(df_delineation.columns):
-        raise ValueError(f"{delineation_file} must contain 'spot_id' and 'area' columns")
-
-    # Load AnnData
-    adata_path = spatial_input / sample / "outs" / "matrices" / f"{sample}_manual_delineation.h5ad"
+    # Flat h5ad, matching conversor.py / cell2loc_owndata.py's layout
+    adata_path = spatial_input / f"{sample}.h5ad"
     if not adata_path.exists():
         raise FileNotFoundError(adata_path)
-
     adata = sc.read_h5ad(adata_path)
 
-    #adata = adata[~adata.obs["manual_delineation"].isna()].copy()
+    if args.delineation_dir != "NO_DELINEATION":
+        delin_file = data_dir_placeholder = Path(args.delineation_dir) / f"{sample}_manual_delineation.csv"
+        if not delin_file.exists():
+            raise FileNotFoundError(delin_file)
+        df_delineation = pd.read_csv(delin_file, index_col=0)
+        adata.obs["manual_delineation"] = df_delineation.reindex(adata.obs_names).iloc[:, 0]
+    else:
+        adata.obs["manual_delineation"] = "WHOLE_SAMPLE"
 
     adatas.append(adata)
+
 
 # -------------------- DEA FUNCTION --------------------
 def do_DEA(combined_adata, area_output_dir, area):

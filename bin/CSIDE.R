@@ -1,67 +1,55 @@
 #!/usr/bin/env Rscript
 
-# ---------------------------
-# Parse arguments
-# ---------------------------
-# Load the .h5ad file from cell2location
-args <- commandArgs(trailingOnly = TRUE)
+#!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(optparse))
 
-ref_level <- args[1]
-spatial_input <- args[2]     # Here we have the .rds dir for each sample after RCTD
-output_base_dir <- args[3]   # Main base directory for outputs like references
-ref_label <- args[4]
-masked_celltypes <- args[5]
-renv_project <- args[6]
+option_list <- list(
+  make_option("--ref_level", type = "character"),
+  make_option("--cell2loc_dir", type = "character",
+              help = "Per-sample counts dir, staged from CELL2LOC_OWNDATA"),
+  make_option("--coords_dir", type = "character",
+              help = "Per-sample coordinates CSVs, staged from EXTRACT_SPATIAL_INPUTS"),
+  make_option("--delineation_dir", type = "character", default = "NO_DELINEATION"),
+  make_option("--output_base_dir", type = "character", default = "."),
+  make_option("--ref_label", type = "character"),
+  make_option("--masked_celltypes", type = "character", default = ""),
+  make_option("--conditions", type = "character", help = "comma-separated, e.g. SCI_10d,healthy"),
+  make_option("--samples", type = "character", help = "comma-separated sample IDs"),
+  make_option("--conditions_map", type = "character", help = "comma-separated sample:condition pairs"),
+  make_option("--condition_order", type = "character", help = "comma-separated test,ref"),
+  make_option("--regions", type = "character", default = "ALL_SPOTS",
+              help = "Comma-separated region labels to test, or ALL_SPOTS for whole-sample pseudobulk")
+)
+opt <- parse_args(OptionParser(option_list = option_list))
 
-# position 7: comma-separated conditions string
-conditions <- strsplit(args[7], ",")[[1]]
+ref_level          <- opt$ref_level
+cell2loc_dir       <- opt$cell2loc_dir
+coords_dir         <- opt$coords_dir
+delineation_dir    <- opt$delineation_dir
+output_base_dir    <- opt$output_base_dir
+ref_label          <- opt$ref_label
+masked_celltypes   <- opt$masked_celltypes
+conditions         <- strsplit(opt$conditions, ",")[[1]]
+samples            <- strsplit(opt$samples, ",")[[1]]
+conditions_map     <- strsplit(opt$conditions_map, ",")[[1]]
+condition_order    <- strsplit(opt$condition_order, ",")[[1]]
+test_cond          <- condition_order[1]
+ref_cond           <- condition_order[2]
 
-# positions 8 onward: samples vector
-#samples <- args[11:length(args)]
-
-# everything after that are samples, "::", and conditions_map
-rest <- args[8:length(args)]
-split_idx <- which(rest == "::")
-
-if(length(split_idx) == 0) stop("[Rscript] '::' sentinel missing for conditions_map")
-samples <- rest[1:(split_idx-1)]
-conditions_map <- rest[(split_idx+1):length(rest)]
-
-# 2️⃣ check if "::conditions" sentinel is present
-cond_sentinel_idx <- which(conditions_map == "::conditions")
-if(length(cond_sentinel_idx) != 1) stop("[Rscript] '::conditions' sentinel missing for test/ref")
-# extract test/ref
-test_cond <- conditions_map[cond_sentinel_idx + 1]
-ref_cond  <- conditions_map[cond_sentinel_idx + 2]
-
-# remove sentinel + test/ref from conditions_map
-conditions_map <- conditions_map[1:(cond_sentinel_idx-1)]
-
-# Turn "Spatial_1:healthy" into a named vector
 condition_lookup <- setNames(
-  sub(".*:", "", conditions_map),  # condition
-  sub(":.*", "", conditions_map)   # sample
+  sub(".*:", "", conditions_map),
+  sub(":.*", "", conditions_map)
 )
 
-# ---------------------------
-# Debug prints
-# ---------------------------
-cat("[DEBUG] samples:\n")
-print(samples)
-cat("[DEBUG] condition_lookup:\n")
-print(condition_lookup)
+use_delineation <- opt$regions != "ALL_SPOTS" && delineation_dir != "NO_DELINEATION"
+
+cat("[DEBUG] samples:\n"); print(samples)
+cat("[DEBUG] condition_lookup:\n"); print(condition_lookup)
 cat("[DEBUG] test_cond =", test_cond, " | ref_cond =", ref_cond, "\n")
+cat("[DEBUG] use_delineation =", use_delineation, "\n")
 
-#########LOOKS LIKE THIS#########
-#condition_lookup <- c(
-#  "Spatial_1" = "healthy",
-#  "Spatial_2" = "injured10",
-#  "Spatial_3" = "injured30",
-#  "Spatial_4" = "treated10"
-#)
 
-#max_cores <- as.integer(args[4])
-
+#NEED to delete this:? Ask claude
 # Define CSIDE_OUTPUT_DIR: RUN_NAME + CSIDE
 cside_output_dir <- file.path(output_base_dir, "CSIDE")
 
@@ -69,13 +57,6 @@ cside_output_dir <- file.path(output_base_dir, "CSIDE")
 if (!dir.exists(cside_output_dir)) {
   dir.create(cside_output_dir, recursive = TRUE)
 }
-
-# ---------------------------
-# Load renv environment
-# ---------------------------
-
-library(renv)
-renv::restore(prompt = FALSE)
 
 
 # ---------------------------
@@ -94,10 +75,6 @@ suppressPackageStartupMessages({
 # ---------------------------
 # Helper functions
 # ---------------------------
-
-# Dir for input data (spatial samples and references)
-data_dir = file.path(output_base_dir, "data")
-cell2loc_main_dir = file.path(output_base_dir, "cell2location_map")
 
 # ---- Gene filtering (analogous to cell2location.filter_genes) ----
 filter_genes <- function(counts,
@@ -293,32 +270,22 @@ for (cond in conditions) {
   print(table(references[[cond]]@cell_types))
 }
 
-#reference_healthy <- load_reference_data("healthy", data_dir)
-#reference_injured <- load_reference_data("injured", data_dir)
+# REPLACE load_spatial_data with:
+load_spatial_data <- function(sample_name, coords_dir, cell2loc_sample_dir) {
+  counts_file <- file.path(cell2loc_sample_dir, paste0(sample_name, "_counts.csv"))
+  coords_file <- file.path(coords_dir, paste0(sample_name, "_coords.csv"))
 
-#cat("Healthy reference cell types:\n")
-#print(table(reference_healthy@cell_types))
-
-#cat("Injured reference cell types:\n")
-#print(table(reference_injured@cell_types))
-
-
-
-# Function to load spatial data (counts are from cell2loc) 
-load_spatial_data <- function(sample_name, sample_dir, cell2loc_dir) {
-  counts_file <- file.path(cell2loc_dir, paste0(sample_name, "_counts.csv"))
-  coords_file <- file.path(sample_dir, paste0(sample_name, "_coordinates.csv"))
-  
   counts <- read.csv(counts_file, row.names = 1, check.names = FALSE)
-  
-  # Load coordinates (barcodes are in the first column)
   coords <- read.csv(coords_file, row.names = 1, check.names = FALSE)
-  
   nUMI <- colSums(counts)
-  
+
   return(SpatialRNA(coords, counts, nUMI))
 }
 
+pucks <- lapply(samples, function(sample) {
+  load_spatial_data(sample, coords_dir, file.path(cell2loc_dir, sample))
+})
+names(pucks) <- samples
 
 ###COMBINE REFERENCES
 
@@ -342,6 +309,7 @@ load_spatial_data <- function(sample_name, sample_dir, cell2loc_dir) {
 
 # Spatial samples are in data_dir + {sample}
 
+#Check if we need to remove this block:
 pucks <- lapply(samples, function(sample) {
   sample_dir <- file.path(data_dir, sample)
   cell2loc_dir <- file.path(cell2loc_main_dir, sample)
@@ -350,19 +318,35 @@ pucks <- lapply(samples, function(sample) {
 names(pucks) <- samples
 
 
+#This block is correct (claude)
+if (use_delineation) {
+  region_annotations <- lapply(samples, function(sample) {
+    file <- file.path(delineation_dir, paste0(sample, "_manual_delineation.csv"))
+    reg <- read.csv(file, header = TRUE, check.names = FALSE)
+    rownames(reg) <- reg[, 1]
+    reg <- reg[, -1, drop = FALSE]
+    return(reg)
+  })
+  names(region_annotations) <- samples
 
-# Obtain region annotations which are in data_dir + {sample} (make a dataframe)
-region_annotations <- lapply(samples, function(sample) {
-  sample_dir <- file.path(data_dir, sample)
-  file <- file.path(sample_dir, paste0(sample, "_manual_delineation.csv"))
-  reg <- read.csv(file, header = TRUE, check.names = FALSE)
+  regions <- unique(unlist(region_annotations))
+  regions <- regions[!is.na(regions) & trimws(regions) != ""]
 
-  rownames(reg) <- reg[, 1]
-  reg <- reg[, -1, drop = FALSE]
-  return(reg)
-})
-names(region_annotations) <- samples
-
+  if (opt$regions != "ALL_SPOTS") {
+    requested <- strsplit(opt$regions, ",")[[1]]
+    regions <- intersect(regions, requested)
+  }
+} else {
+  # No delineation configured — treat every spot in every sample as one region
+  region_annotations <- lapply(samples, function(sample) {
+    barcodes <- colnames(pucks[[sample]]@counts)
+    df <- data.frame(WHOLE_SAMPLE = rep("WHOLE_SAMPLE", length(barcodes)))
+    rownames(df) <- barcodes
+    df
+  })
+  names(region_annotations) <- samples
+  regions <- c("WHOLE_SAMPLE")
+}
 
 #----------------OLD WAY ---------------
 # List only the CSV files matching "Spatial_<number>_counts.csv"
@@ -527,17 +511,6 @@ cat("Samples recovered:", paste(samples, collapse = ", "), "\n")
 # 3) RCTD_list alias (so old code referencing RCTD_list keeps working)
 RCTD_list <- myRCTD.reps@RCTD.reps
 
-# 5) Ensure condition_lookup exists; if not, recreate from conditions_map (CLI parsing earlier)
-if (!exists("condition_lookup")) {
-  if (exists("conditions_map")) {
-    condition_lookup <- setNames(
-      sub(".*:", "", conditions_map),
-      sub(":.*", "", conditions_map)
-    )
-  } else {
-    stop("condition_lookup missing and cannot reconstruct: ensure 'conditions_map' arg was passed.")
-  }
-}
 # Quick check
 missing_map <- samples[is.na(vapply(samples, function(s) condition_lookup[[s]], character(1)))]
 if (length(missing_map) > 0) stop("No condition mapping for samples: ", paste(missing_map, collapse = ", "))
@@ -839,11 +812,6 @@ run_region_dea_meta <- function(myRCTD.reps, regions, region_annotations, design
     }
   }
 }
-
-
-#Select regions and ensure drop NA and empty strings
-regions <- unique(unlist(region_annotations))
-regions <- regions[!is.na(regions) & trimws(regions) != ""]
 
 
 #####
