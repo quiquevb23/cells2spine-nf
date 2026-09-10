@@ -1,0 +1,23 @@
+{
+  "ref_level": "l3",
+  "single_cell_ref": "tests/fixtures/ref/test_ref.h5ad",
+  "spatial_input": "tests/fixtures/spatial",
+  "spatial_h5ad_glob": "*_manual_delineation.h5ad",
+  "ref_label": "celltypes_l3_tabulae",
+  "conditions": "SCI_10d,healthy",
+  "condition_order": ["SCI_10d", "healthy"],
+  "cutoff_celltypes": 0,
+  "delineation_obs_key": "manual_delineation",
+  "areas": ["Dorsal_gm", "Ventral_gm"],
+  "masked_celltypes": "Astrocytes_Oligo,Microglia_Oligo,Microglia_low,VEL_V2a_Vsx2,junk,CSF_N",
+  "manual_celltypes": [
+    "Astrocytes_protoplasmic", "Astrocytes_fibrous", "Ependymal",
+    "MFOL", "MOL", "Microglia", "OPC", "Vascular", "Motor_neurons"
+  ],
+  "sample_metadata": [
+    {"sample": "sp16", "condition": "healthy", "time": 0},
+    {"sample": "sp19", "condition": "SCI_10d", "time": 10}
+  ],
+  "masigpro": {}
+}
+

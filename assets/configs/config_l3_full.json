@@ -1,0 +1,44 @@
+{
+  "ref_level": "l3",
+  "single_cell_ref": "/storage/gge/Quique/Cells2SpineData/full_exp/single-cell/runs_joined/joined/adata_combined.h5ad",
+  "spatial_input": "/storage/gge/Quique/Cells2SpineData/full_exp/spatial/matrices/indiv_samples",
+  "spatial_h5ad_glob": "*_manual_delineation.h5ad",
+  "ref_label": "celltypes_l3_tabulae",
+  "conditions": "healthy,SCI_10d,SCI_30d,bPAC_10d,bPAC_30d",
+  "condition_order": ["healthy", "SCI_10d", "SCI_30d", "bPAC_10d", "bPAC_30d"],
+  "cutoff_celltypes": 0,
+  "delineation_obs_key": "manual_delineation",
+  "areas": ["Dorsal_gm", "Dorsal_wm", "Medial_gm", "Ventral_gm", "Ventral_wm"],
+  "masked_celltypes": "Astrocytes_Oligo,Microglia_Oligo,Microglia_low,VEL_V2a_Vsx2,junk,CSF_N",
+  "manual_celltypes": [
+    "Astrocytes_protoplasmic", "Astrocytes_fibrous", "Astrocytes_Oligo", "Ependymal",
+    "MFOL", "MOL", "Microglia", "Microglia_Oligo", "Microglia_reactive",
+    "NFOL", "OPC", "Vascular", "Vascular_Endothelial", "Peripheral_immune_cells",
+    "Neural_stem_cells", "Motor_neurons", "VEP", "V1",
+    "DI_Rorb", "MEP", "MEL", "MI", "VCL_V0d_V2b", "DE_Maf", "DI_Pdyn",
+    "DE_Sox5_Tac1", "DI_Npy", "DE_Rreb1", "DE_Sox5_Tac2", "DE_Cpne4_Prkcg",
+    "DE_Reln", "CSF_N", "VEP_V0", "Microglia_low", "VEL_V2a_Vsx2", "junk"
+  ],
+  "sample_metadata": [
+    {"sample": "sp16", "condition": "healthy",  "time": 0},
+    {"sample": "sp21", "condition": "healthy",  "time": 0},
+    {"sample": "sp26", "condition": "healthy",  "time": 0},
+    {"sample": "sp19", "condition": "SCI_10d",  "time": 10},
+    {"sample": "sp24", "condition": "SCI_10d",  "time": 10},
+    {"sample": "sp29", "condition": "SCI_10d",  "time": 10},
+    {"sample": "sp17", "condition": "SCI_30d",  "time": 30},
+    {"sample": "sp22", "condition": "SCI_30d",  "time": 30},
+    {"sample": "sp27", "condition": "SCI_30d",  "time": 30},
+    {"sample": "sp20", "condition": "bPAC_10d", "time": 10},
+    {"sample": "sp25", "condition": "bPAC_10d", "time": 10},
+    {"sample": "sp30", "condition": "bPAC_10d", "time": 10},
+    {"sample": "sp18", "condition": "bPAC_30d", "time": 30},
+    {"sample": "sp23", "condition": "bPAC_30d", "time": 30},
+    {"sample": "sp28", "condition": "bPAC_30d", "time": 30}
+  ],
+  "masigpro": {
+    "clusters": ["Dorsal_gm", "Medial_gm", "Ventral_gm"],
+    "gene_lists": []
+  }
+}
+
