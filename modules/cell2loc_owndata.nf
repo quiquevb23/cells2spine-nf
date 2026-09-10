@@ -27,4 +27,10 @@ process CELL2LOC_OWNDATA {
         --ref_label ${ref_label} --conditions ${conditions} \\
         --masked_celltypes "${masked_celltypes}"
     """
+
+    stub:
+    """
+    mkdir -p cell2location_map/stub
+    touch cell2location_map/stub/cell2loc_counts.csv
+    """
 }

@@ -41,3 +41,4 @@ scratch/
 .vscode/
 .DS_Store
 *.save        # e.g. cell2loc_owndata.py.save — stray editor backup, exclude
+results/

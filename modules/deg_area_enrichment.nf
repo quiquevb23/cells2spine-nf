@@ -17,4 +17,10 @@ process DEG_AREA_ENRICHMENT {
     Rscript /usr/local/bin/GSEA.R --deg_dir ${deg_dir} --output_dir FunctionalEnrichment/GSEA
     Rscript /usr/local/bin/ORA.R  --deg_dir ${deg_dir} --output_dir FunctionalEnrichment/ORA
     """
+
+    stub:
+    """
+    mkdir -p FunctionalEnrichment/GSEA FunctionalEnrichment/ORA
+    touch FunctionalEnrichment/GSEA/placeholder FunctionalEnrichment/ORA/placeholder
+    """
 }
