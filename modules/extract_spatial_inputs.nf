@@ -19,7 +19,7 @@ process EXTRACT_SPATIAL_INPUTS {
     def delin_cmd = delineation_obs_key ?
         """
         mkdir -p delineation
-        extract_delineation.py \\
+        python3 /usr/local/bin/extract_delineation.py \\
             --spatial_input ${spatial_input} \\
             --samples ${samples.join(' ')} \\
             --obs_key ${delineation_obs_key} \\
@@ -29,7 +29,7 @@ process EXTRACT_SPATIAL_INPUTS {
     """
     mkdir -p counts coords
 
-    conversor.py \\
+    python3 /usr/local/bin/conversor.py \\
         --spatial_input ${spatial_input} \\
         --output_base_dir . \\
         --samples ${samples.join(' ')} \\

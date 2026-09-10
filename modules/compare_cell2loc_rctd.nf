@@ -19,34 +19,34 @@ process COMPARE_CELL2LOC_RCTD {
     // apply their whole-sample fallback (no area subdirectory).
     def area_list = areas ? areas : ["WHOLE_SAMPLE"]
     """
-    differential_abundance_.py \\
+    python3 /usr/local/bin/differential_abundance_.py \\
         --input_cell2loc ${cell2loc_map} \\
         --input_rctd     ${rctd_results} \\
         --out_dir        DA
 
-    compare_cell2loc_rctd.py --output_base_dir .
+    python3 /usr/local/bin/compare_cell2loc_rctd.py --output_base_dir .
 
     for AREA in ${area_list.join(' ')}; do
-        compare_gene_expr.py \\
+        python3 /usr/local/bin/compare_gene_expr.py \\
             --area         \$AREA \\
             --cell2loc_dir ${cell2loc_map} \\
             --rctd_dir     ${rctd_results} \\
             --output_dir   Gene_Expr/\$AREA
 
-        compare_DEGs.py \\
+        python3 /usr/local/bin/compare_DEGs.py \\
             --area         \$AREA \\
             --cell2loc_dir ${cell2loc_degs} \\
             --rctd_dir     ${cside_degs} \\
             --output_dir   DEGs/\$AREA
 
-        compare_FE.py \\
+        python3 /usr/local/bin/compare_FE.py \\
             --area         \$AREA \\
             --cell2loc_dir ${cell2loc_degs}/FunctionalEnrichment \\
             --rctd_dir     ${cside_degs}/FunctionalEnrichment \\
             --output_dir   FEs/\$AREA
     done
 
-    plot_global_FE_heatmaps.py \\
+    python3 /usr/local/bin/plot_global_FE_heatmaps.py \\
         --input_base FEs \\
         --output_dir FEs/global_heatmaps
     """

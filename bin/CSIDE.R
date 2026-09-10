@@ -1,6 +1,4 @@
 #!/usr/bin/env Rscript
-
-#!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(optparse))
 
 option_list <- list(

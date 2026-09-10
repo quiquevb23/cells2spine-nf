@@ -20,7 +20,7 @@ process DEG_AREA_PIPELINE {
     def delin_arg   = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
     def regions_arg = regions         ? "--regions ${regions.join(',')}"        : "--regions ALL_SPOTS"
     """
-    DEG_areas_pipeline.py \\
+    python3 /usr/local/bin/DEG_areas_pipeline.py \\
         --ref_level         ${ref_level} \\
         --output_base_dir   . \\
         --counts_dir        ${counts_dir} \\
@@ -30,7 +30,7 @@ process DEG_AREA_PIPELINE {
         ${delin_arg} \\
         ${regions_arg}
 
-    VolcanoPlot_DEG_pipeline.py \\
+    python3 /usr/local/bin/VolcanoPlot_DEG_pipeline.py \\
         --output_base_dir . \\
         --samples         ${samples.join(' ')}
     """

@@ -21,7 +21,7 @@ process CT_GENE_EXPR_PERCELLTYPE {
     script:
     def delin_arg = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
     """
-    ct_gene_expr.py \\
+    python3 /usr/local/bin/ct_gene_expr.py \\
         --base_dir          . \\
         --out_dir           CT_Gene_expr \\
         --cside_dir         ${cside_results} \\

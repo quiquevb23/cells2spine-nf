@@ -19,7 +19,7 @@ process MASIGPRO_ANALYSIS {
     def gene_arg    = gene_list     ? "--gene_list ${gene_list}"         : "--gene_list NO_FILE"
     def delin_arg   = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
     """
-    run_masigpro.R \\
+    Rscript /usr/local/bin/run_masigpro.R \\
         --counts_dir        ${counts_dir} \\
         ${delin_arg} \\
         --sample_metadata   ${sample_metadata} \\
