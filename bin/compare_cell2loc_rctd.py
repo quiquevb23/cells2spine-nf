@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 This code will do pie charts for each spatial adata to compare the loadings of 
 cell2location and RCTD, deconvoluted with the same reference

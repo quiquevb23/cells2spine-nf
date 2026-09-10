@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Generate volcano plots for DEA areas
 """

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 DEA by manually delineated areas using pseudobulk edgeR
 """

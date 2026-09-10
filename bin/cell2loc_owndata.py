@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 	Deconvolution of ST pilot samples with our own annotated data
 	- First with celltypes_l2, then with celltypes_l3

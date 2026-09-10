@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
     Python file to convert h5ad spatial ref to input required for RCTD
 '''
