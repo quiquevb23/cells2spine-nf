@@ -28,4 +28,4 @@ dependencies:
       - mudata
       - stlearn
       - "numba==0.59.1"
-      - "llvmlite==0.42.3"
+      - "llvmlite==0.42.0"
