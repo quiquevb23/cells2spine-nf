@@ -14,16 +14,21 @@ def main():
     p.add_argument("--obs_key", required=True,
                    help="obs column holding the manual delineation labels")
     p.add_argument("--output_dir", required=True)
+    p.add_argument("--spatial_h5ad_glob", default="*_manual_delineation.h5ad",
+                   help="Glob pattern for h5ad files within each sample directory")
+
     args = p.parse_args()
 
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     for sample in args.samples:
-        h5ad_path = Path(args.spatial_input) / f"{sample}.h5ad"
-        if not h5ad_path.exists():
-            print(f"[WARN] {h5ad_path} not found, skipping {sample}")
+        sample_path = Path(args.spatial_input) / sample / "outs" / "matrices"
+        matches = list(sample_path.glob(args.spatial_h5ad_glob))
+        if not matches:
+            print(f"[WARN] No h5ad matching '{args.spatial_h5ad_glob}' in {sample_path}, skipping {sample}")
             continue
+        h5ad_path = matches[0]
 
         adata = sc.read_h5ad(h5ad_path)
         if args.obs_key not in adata.obs.columns:

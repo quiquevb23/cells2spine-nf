@@ -9,13 +9,15 @@ import scanpy as sc
 import scipy.sparse as sp
 import pandas as pd
 import re
+import glob
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert spatial h5ad to RCTD format")
     parser.add_argument("--spatial_input", required=True, help="Directory with spatial h5ad files")
     parser.add_argument("--output_base_dir", required=True, help="Output for files needed for RCTD")
     parser.add_argument("--samples", nargs="+", help="List of spatial sample names")
-
+    parser.add_argument("--spatial_h5ad_glob", default="*_manual_delineation.h5ad",
+                        help="Glob pattern for spatial h5ad files within each sample directory")
     return parser.parse_args()
 
 def clean_ct_name(ct):
@@ -78,15 +80,13 @@ if __name__ == "__main__":
         try:
             print(f"Processing {sample_name}...")
             sample_path = os.path.join(spatial_input, sample_name, "outs", "matrices")
-            h5ad_file = f"{sample_name}_manual_delineation.h5ad"
-            #sample_path = os.path.join(args.output_base_dir, "cell2location_map", sample_name)
-            #h5ad_file = f"sp{sample_name}.h5ad"
+            matches = glob.glob(os.path.join(sample_path, args.spatial_h5ad_glob))
 
-            full_path = os.path.join(sample_path, h5ad_file)
-
-            if not os.path.exists(full_path):
-                print(f"❌ File not found: {full_path}")
+            if not matches:
+                print(f"❌ No h5ad matching '{args.spatial_h5ad_glob}' in {sample_path}")
                 continue
+
+            full_path = matches[0]
 
             sample_out_dir = os.path.join(out_dir, sample_name)
             os.makedirs(sample_out_dir, exist_ok=True)
