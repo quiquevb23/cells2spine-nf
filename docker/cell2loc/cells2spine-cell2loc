@@ -16,6 +16,7 @@ WORKDIR /workspace
 COPY bin/cell2loc_owndata.py \
      bin/conversor_ref.py \
      bin/conversor.py \
+     bin/extract_delineation.py \
      /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*.py
