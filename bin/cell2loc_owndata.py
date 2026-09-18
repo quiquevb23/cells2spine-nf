@@ -126,7 +126,7 @@ def create_reference_model(adata_ref, condition):
     cell2location.models.RegressionModel.setup_anndata(adata_ref, batch_key='sample', labels_key=ref_label)
     mod = cell2location.models.RegressionModel(adata_ref)
     mod.view_anndata_setup()
-    mod.train(max_epochs=350, use_gpu=False)
+    mod.train(max_epochs=350, accelerator='cpu')
 
     # Save ELBO training curve
     history = mod.history
@@ -143,12 +143,12 @@ def create_reference_model(adata_ref, condition):
     plt.close()
 
     # Option to select full posterior 1 or only quantiles 2
-    #adata_ref = mod.export_posterior(adata_ref, sample_kwargs={'num_samples': 1000, 'batch_size': 2500, 'use_gpu': False})
+    #adata_ref = mod.export_posterior(adata_ref, sample_kwargs={'num_samples': 1000, 'batch_size': 2500})
     adata_ref = mod.export_posterior(
         adata_ref, use_quantiles=True,
         # choose quantiles
         add_to_varm=["q05","q50", "q95", "q0001"], #only quantiles exported
-        #    sample_kwargs={'batch_size': 2500, 'use_gpu': False} #full posterior
+        #    sample_kwargs={'batch_size': 2500} #full posterior
     )
 
     mod.save(ref_signatures, overwrite=True)
@@ -323,7 +323,7 @@ def deconvolution_training(adata_vis, inf_aver, sample, sample_out_dir, plots_di
 ##################################### TRAIN NEW MODEL 
     mod = cell2location.models.Cell2location(adata_vis, cell_state_df=inf_aver, N_cells_per_location=8, detection_alpha=20)
     mod.view_anndata_setup()
-    mod.train(max_epochs=7000, batch_size=None, train_size=1, use_gpu=False)
+    mod.train(max_epochs=7000, batch_size=None, train_size=1, accelerator='cpu')
 
     # --- plot ELBO loss ---
     history = mod.history
@@ -350,7 +350,7 @@ def deconvolution_training(adata_vis, inf_aver, sample, sample_out_dir, plots_di
     # Export posterior
     adata_vis = mod.export_posterior(
         adata_vis,
-        sample_kwargs={'num_samples': 1000, 'batch_size': mod.adata.n_obs, 'use_gpu': False},
+        sample_kwargs={'num_samples': 1000, 'batch_size': mod.adata.n_obs},
         add_to_obsm=['means', 'stds', 'q05', 'q95']
     )
     mod.save(f"{sample_out_dir}/model_{sample}", overwrite=True)
