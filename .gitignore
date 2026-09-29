@@ -42,3 +42,9 @@ scratch/
 .DS_Store
 *.save        # e.g. cell2loc_owndata.py.save — stray editor backup, exclude
 results/
+
+#logs
+logs/
+
+#singularity_build
+singularity_build_tmp
