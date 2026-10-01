@@ -127,8 +127,11 @@ workflow {
     // ------------------------------------------------------------------
     // 5. DEG by area (independent branch, parallel with CSIDE chain)
     // ------------------------------------------------------------------
+    // NOTE: DEG_areas_pipeline.py reads the raw h5ad (needs full counts + obs),
+    //       so it gets spatial_input like CELL2LOC_OWNDATA, not the counts CSVs.
     DEG_AREA_PIPELINE(
-        EXTRACT_SPATIAL_INPUTS.out.counts,
+        file(params.spatial_input),
+        params.spatial_h5ad_glob,
         params.ref_level,
         samples,
         conditions_map,

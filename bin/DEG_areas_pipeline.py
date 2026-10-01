@@ -29,7 +29,11 @@ def parse_args():
     parser.add_argument("--ref_level", required=True)
     parser.add_argument("--delineation_dir", type=str, default="NO_DELINEATION")
     parser.add_argument("--output_base_dir", required=True)
-    parser.add_argument("--spatial_input", required=True)
+    parser.add_argument("--spatial_input", required=True,
+        help="Root dir with <sample>/outs/matrices/<spatial_h5ad_glob>")
+    parser.add_argument("--spatial_h5ad_glob", default="*_manual_delineation.h5ad")
+    parser.add_argument("--regions", type=str, default="ALL_SPOTS",
+        help="Comma-separated areas to test, or ALL_SPOTS for every area found")
     parser.add_argument("--samples", nargs="+", required=True)
     parser.add_argument("--conditions_map", nargs="+", required=True)
     parser.add_argument("--condition_order", nargs=2, required=True,
@@ -68,14 +72,20 @@ adatas = []
 for sample in args.samples:
     print(f"Processing sample: {sample}")
 
-    # Flat h5ad, matching conversor.py / cell2loc_owndata.py's layout
-    adata_path = spatial_input / f"{sample}.h5ad"
-    if not adata_path.exists():
-        raise FileNotFoundError(adata_path)
-    adata = sc.read_h5ad(adata_path)
+    # Same layout as conversor.py / extract_delineation.py
+    sample_path = spatial_input / sample / "outs" / "matrices"
+    matches = sorted(sample_path.glob(args.spatial_h5ad_glob))
+    if not matches:
+        raise FileNotFoundError(f"No h5ad matching '{args.spatial_h5ad_glob}' in {sample_path}")
+    adata = sc.read_h5ad(matches[0])
+
+    if sample not in condition_map:
+        raise KeyError(f"Sample {sample} missing from --conditions_map")
+    adata.obs["sample"] = sample
+    adata.obs["condition"] = condition_map[sample]
 
     if args.delineation_dir != "NO_DELINEATION":
-        delin_file = data_dir_placeholder = Path(args.delineation_dir) / f"{sample}_manual_delineation.csv"
+        delin_file = Path(args.delineation_dir) / f"{sample}_manual_delineation.csv"
         if not delin_file.exists():
             raise FileNotFoundError(delin_file)
         df_delineation = pd.read_csv(delin_file, index_col=0)
@@ -209,6 +219,13 @@ all_areas = set()
 for adata in adatas:
     all_areas.update(adata.obs["manual_delineation"].unique())
     print(all_areas)
+
+if args.regions != "ALL_SPOTS":
+    requested = [a.strip() for a in args.regions.split(",") if a.strip()]
+    missing = [a for a in requested if a not in all_areas]
+    if missing:
+        print(f"[WARN] Requested regions not found in any sample: {missing}")
+    all_areas = [a for a in requested if a in all_areas]
 
 for area in all_areas:
     area_adatas = []

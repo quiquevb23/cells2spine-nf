@@ -3,7 +3,7 @@ name: Build and Push Containers to GHCR
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]   # main -> :latest, other branches -> :<branch-name>
     paths:
       - 'docker/**'
       - 'envs/**'
@@ -44,10 +44,16 @@ jobs:
         run: |
           echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
 
+      - name: Image tag (latest on main, branch name elsewhere)
+        id: tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then t=latest; else t="${GITHUB_REF_NAME//\//-}"; fi
+          echo "tag=$t" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ matrix.file }}
           push: true
-          tags: ghcr.io/${{ steps.repo.outputs.owner_lc }}/cells2spine-${{ matrix.name }}:latest
+          tags: ghcr.io/${{ steps.repo.outputs.owner_lc }}/cells2spine-${{ matrix.name }}:${{ steps.tag.outputs.tag }}
