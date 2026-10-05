@@ -35,6 +35,8 @@ def parse_args():
     parser.add_argument("--regions", type=str, default="ALL_SPOTS",
         help="Comma-separated areas to test, or ALL_SPOTS for every area found")
     parser.add_argument("--samples", nargs="+", required=True)
+    parser.add_argument("--bcv", type=float, default=0.4,
+                        help="Fixed biological CV used when a condition has no replicates")
     parser.add_argument("--conditions_map", nargs="+", required=True)
     parser.add_argument("--condition_order", nargs=2, required=True,
         help="Condition contrast order: test first, reference second"
@@ -189,9 +191,18 @@ def do_DEA(combined_adata, area_output_dir, area):
 
     dge = r("dge[keep, , keep.lib.sizes=FALSE]")
     dge = edgeR.normLibSizes(dge)
-    dge = edgeR.estimateDisp(dge)
 
-    de = edgeR.exactTest(dge)
+    # Without replicates edgeR cannot estimate dispersion (NA -> exactTest fails).
+    # Fall back to a fixed BCV, as the edgeR user guide suggests ("no replicates").
+    min_reps = pseudobulk_metadata["condition"].value_counts().min()
+    if min_reps >= 2:
+        dge = edgeR.estimateDisp(dge)
+        de = edgeR.exactTest(dge)
+    else:
+        print(f"[WARN] Area {area}: no replication within a condition; "
+              f"using fixed BCV={args.bcv} (dispersion={args.bcv ** 2:.3f}). "
+              f"p-values are indicative only.")
+        de = edgeR.exactTest(dge, dispersion=args.bcv ** 2)
     results = edgeR.topTags(de, n=r("nrow")(dge)).rx2("table")
 
     with localconverter(ro.default_converter + pandas2ri.converter):
