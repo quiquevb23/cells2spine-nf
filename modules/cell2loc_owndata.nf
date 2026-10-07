@@ -3,7 +3,7 @@ process CELL2LOC_OWNDATA {
     tag "${ref_level}"
     label 'process_high'
     container params.container_cell2loc
-    publishDir "${params.outdir}/cell2location_map", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     val ref_level; path single_cell_ref; path spatial_input
@@ -11,7 +11,8 @@ process CELL2LOC_OWNDATA {
     val cutoff_celltypes; val manual_celltypes; val samples; val conditions_map
 
     output:
-    path "cell2location_map/**", emit: cell2loc_map
+    path "cell2location_map", emit: cell2loc_map   // dir: <sample>/... (CSIDE reads cell2loc_dir/<sample>)
+    path "data",              emit: sc_ref_data    // conversor_ref.py output: data/reference_<cond>/ for RCTD
 
     script:
     """
@@ -30,7 +31,7 @@ process CELL2LOC_OWNDATA {
 
     stub:
     """
-    mkdir -p cell2location_map/stub
+    mkdir -p cell2location_map/stub data
     touch cell2location_map/stub/cell2loc_counts.csv
     """
 }

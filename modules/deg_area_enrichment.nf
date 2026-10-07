@@ -9,7 +9,7 @@ process DEG_AREA_ENRICHMENT {
     path deg_dir
 
     output:
-    path "FunctionalEnrichment/**"
+    path "FunctionalEnrichment", emit: results
 
     script:
     """

@@ -5,10 +5,16 @@ process COMPARE_CELL2LOC_RCTD {
     publishDir "${params.outdir}/Plots/Comparisons", mode: 'copy'
 
     input:
-    path cell2loc_map     // CELL2LOC_OWNDATA output
-    path rctd_results     // RCTD/** from CSIDE
-    path cell2loc_degs    // CT_Gene_expr results from CT_GENE_EXPR_PERCELLTYPE
-    path cside_degs       // CSIDE/** from CSIDE (for DEGs)
+    val  ref_level
+    val  samples
+    val  conditions_map
+    val  condition_order
+    path cell2loc_map     // "cell2location_map" dir from CELL2LOC_OWNDATA (+ gene_expr_ct_mean from CT_GENE_EXPR_PERCELLTYPE)
+    path rctd_results     // "RCTD" dir from CSIDE
+    path cell2loc_degs    // "CT_Gene_expr" dir from CT_GENE_EXPR_PERCELLTYPE
+    path cside_degs       // "CSIDE" dir from CSIDE (for DEGs)
+    path cell2loc_fe      // "FunctionalEnrichment" dir from CT_GENE_EXPR_ENRICHMENT
+    path delineation_dir  // "delineation" directory from EXTRACT_SPATIAL_INPUTS, or []
     val  areas            // params.areas list, or [] for whole-sample
 
     output:
@@ -18,13 +24,26 @@ process COMPARE_CELL2LOC_RCTD {
     // When areas is empty/null we use WHOLE_SAMPLE sentinel so compare scripts
     // apply their whole-sample fallback (no area subdirectory).
     def area_list = areas ? areas : ["WHOLE_SAMPLE"]
+    // scCODA differential abundance is per area, so it needs the delineation CSVs
+    def da_cmd = delineation_dir ?
+        """
+        python3 /usr/local/bin/differential_abundance_.py \\
+            --input_cell2loc  ${cell2loc_map} \\
+            --input_rctd      ${rctd_results} \\
+            --delineation_dir ${delineation_dir} \\
+            --samples         ${samples.join(' ')} \\
+            --conditions_map  ${conditions_map.join(' ')} \\
+            --condition_order ${condition_order.join(' ')} \\
+            --out_dir         DA
+        """ : "echo 'No delineation configured: skipping differential abundance'"
     """
-    python3 /usr/local/bin/differential_abundance_.py \\
-        --input_cell2loc ${cell2loc_map} \\
-        --input_rctd     ${rctd_results} \\
-        --out_dir        DA
+    ${da_cmd}
 
-    python3 /usr/local/bin/compare_cell2loc_rctd.py --output_base_dir .
+    python3 /usr/local/bin/compare_cell2loc_rctd.py \\
+        --ref_level       ${ref_level} \\
+        --output_base_dir . \\
+        --pie_chart_dir   PieCharts \\
+        --samples         ${samples.join(' ')}
 
     for AREA in ${area_list.join(' ')}; do
         python3 /usr/local/bin/compare_gene_expr.py \\
@@ -39,9 +58,11 @@ process COMPARE_CELL2LOC_RCTD {
             --rctd_dir     ${cside_degs} \\
             --output_dir   DEGs/\$AREA
 
+        # NOTE: no enrichment is run on CSIDE DEGs yet, so the CSIDE side is
+        # missing and compare_FE.py only warns ("Missing CSIDE FE dir").
         python3 /usr/local/bin/compare_FE.py \\
             --area         \$AREA \\
-            --cell2loc_dir ${cell2loc_degs}/FunctionalEnrichment \\
+            --cell2loc_dir ${cell2loc_fe} \\
             --rctd_dir     ${cside_degs}/FunctionalEnrichment \\
             --output_dir   FEs/\$AREA
     done

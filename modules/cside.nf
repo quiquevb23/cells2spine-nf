@@ -16,10 +16,11 @@ process CSIDE {
     path cell2loc_map         // output directory from CELL2LOC_OWNDATA
     path coords               // "coords" directory from EXTRACT_SPATIAL_INPUTS
     path delineation          // "delineation" directory, or empty when not configured
+    path sc_ref_data          // "data" directory from CELL2LOC_OWNDATA; CSIDE.R reads <output_base_dir>/data/reference_<cond>
 
     output:
-    path "RCTD/**",  emit: rctd_results
-    path "CSIDE/**", emit: cside_results
+    path "RCTD",  emit: rctd_results
+    path "CSIDE", emit: cside_results
 
     script:
     def regions_arg = regions ? "--regions ${regions.join(',')}" : "--regions ALL_SPOTS"

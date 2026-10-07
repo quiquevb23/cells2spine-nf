@@ -102,7 +102,8 @@ workflow {
         areaList,
         CELL2LOC_OWNDATA.out.cell2loc_map,
         EXTRACT_SPATIAL_INPUTS.out.coords,
-        delineationCh
+        delineationCh,
+        CELL2LOC_OWNDATA.out.sc_ref_data
     )
 
     // ------------------------------------------------------------------
@@ -116,6 +117,7 @@ workflow {
         params.manual_celltypes,
         conditions_map,
         params.condition_order,
+        CELL2LOC_OWNDATA.out.cell2loc_map,
         CSIDE.out.cside_results,
         delineationCh
     )
@@ -176,10 +178,16 @@ workflow {
     // 7. Comparisons (cell2loc vs RCTD/CSIDE)
     // ------------------------------------------------------------------
     COMPARE_CELL2LOC_RCTD(
+        params.ref_level,
+        samples,
+        conditions_map,
+        params.condition_order,
         CELL2LOC_OWNDATA.out.cell2loc_map,
         CSIDE.out.rctd_results,
         CT_GENE_EXPR_PERCELLTYPE.out.results,
         CSIDE.out.cside_results,
+        CT_GENE_EXPR_ENRICHMENT.out.results,
+        delineationCh,
         areaList
     )
 }
