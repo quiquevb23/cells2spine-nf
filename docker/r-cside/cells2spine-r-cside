@@ -32,7 +32,12 @@ COPY envs/activate-cside.R ./renv/activate.R
 
 # Bake the exact CSIDE-side dependency graph (including spacexr @ 698d5b0)
 # into the image at BUILD time — no network calls, no drift at runtime.
-RUN R -e "renv::restore(lockfile = 'renv.lock', confirm = FALSE)"
+RUN R -e "renv::restore(lockfile = 'renv.lock', library = '/usr/local/lib/R/site-library', confirm = FALSE)"
+
+# CSIDE.R also loads optparse and limma, which are not in renv-cside.lock
+RUN R -e "install.packages(c('optparse', 'BiocManager'), repos = 'https://cloud.r-project.org')" \
+    && R -e "BiocManager::install('limma', update = FALSE, ask = FALSE)" \
+    && R -e "for (p in c('optparse', 'limma', 'spacexr', 'dplyr', 'Matrix')) library(p, character.only = TRUE)"
 
 COPY bin/CSIDE.R /usr/local/bin/CSIDE.R
 RUN chmod +x /usr/local/bin/CSIDE.R
