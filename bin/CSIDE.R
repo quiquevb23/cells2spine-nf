@@ -442,17 +442,19 @@ for (sample_name in names(pucks)) {
   RCTD_list[[sample_name]] <- rctd
 }
 
-replicate_names <- vapply(names(RCTD_list),
-                          function(s) condition_lookup[[s]],
-                          character(1))
+# Replicates must be named by SAMPLE (not condition): everything downstream
+# (condition_lookup, region_annotations, design matrix rownames) is keyed by
+# sample ID, and condition names would collide when >1 sample per condition.
+replicate_names <- names(RCTD_list)
 
 # ---------------------------
 # Combine into a replicate object
 # ---------------------------
 myRCTD.reps <- merge_RCTD_objects(
   RCTD_list,
-  replicate_names = replicate_names,
+  replicate_names = replicate_names
 )
+names(myRCTD.reps@RCTD.reps) <- replicate_names
 
 saveRDS(myRCTD.reps, file.path(cside_output_dir, "myRCTD_reps_afterRCTD.rds"))
 
@@ -834,14 +836,16 @@ run_limma_dea_long <- function(myRCTD.reps, regions, region_annotations, design_
     reg_results <- list()
 
     for (i in seq_along(myRCTD.reps@RCTD.reps)) {
-      sample_name <- names(region_annotations)[i]
+      sample_name <- names(myRCTD.reps@RCTD.reps)[i]
 
       rep <- myRCTD.reps@RCTD.reps[[i]]
 
       mean_mat <- rep@de_results$gene_fits$mean_val   # genes x cell types
       se_mat   <- rep@de_results$gene_fits$s_mat      # genes x cell types
 
-      reg_results[[i]] <- list(sample = sample_name, mean = mean_mat, se = se_mat)
+      # Skip replicates where CSIDE was not run for this region (no barcodes / no cell types)
+      if (is.null(mean_mat)) next
+      reg_results[[length(reg_results) + 1]] <- list(sample = sample_name, mean = mean_mat, se = se_mat)
     }
 
     if (length(reg_results) == 0) {
@@ -1226,7 +1230,7 @@ for (reg in regions) {
     reg_ann_df <- region_annotations[[sample_name]]
 
     # Select region-specific barcodes
-    region_barcodes <- rownames(reg_ann_df)[reg_ann_df[,] == reg]
+    region_barcodes <- rownames(reg_ann_df)[which(as.character(reg_ann_df[[1]]) == reg)]
 
     cat("Sample:", sample_name,
         "| total RCTD barcodes:", ncol(rep@spatialRNA@counts),
@@ -1275,13 +1279,25 @@ for (reg in regions) {
     # (optional) Inspect metrics to see which cell types were dropped, run CSIDE only with present celltypes
     head(res$metrics)
 
-    rep_region <- run.CSIDE.intercept(
-      rep_region_filtered,
-      cell_types = kept_cts,
-      cell_type_threshold = 0,
-      doublet_mode = FALSE,
-      weight_threshold = 0.1
+    if (length(kept_cts) == 0) {
+      cat("  → Skipping: no cell types passed the filter in", sample_name, "/", reg, "\n")
+      next
+    }
+
+    rep_region <- tryCatch(
+      run.CSIDE.intercept(
+        rep_region_filtered,
+        cell_types = kept_cts,
+        cell_type_threshold = 0,
+        doublet_mode = FALSE,
+        weight_threshold = 0.1
+      ),
+      error = function(e) {
+        cat("  [WARN] run.CSIDE.intercept failed for", sample_name, "/", reg, ":", conditionMessage(e), "\n")
+        NULL
+      }
     )
+    if (is.null(rep_region) || is.null(rep_region@de_results$gene_fits)) next
 
     # Remove genes that did not converge for particular celltypes (adds NAs)
     
