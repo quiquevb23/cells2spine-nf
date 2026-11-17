@@ -9,7 +9,7 @@ process COMPARE_CELL2LOC_RCTD {
     val  samples
     val  conditions_map
     val  condition_order
-    path cell2loc_map     // "cell2location_map" dir from CELL2LOC_OWNDATA (+ gene_expr_ct_mean from CT_GENE_EXPR_PERCELLTYPE)
+    path cell2loc_map, stageAs: 'cell2location_map/*'  // per-sample dirs from CELL2LOC_MAP (+ gene_expr_ct_mean from CT_GENE_EXPR_PERCELLTYPE)
     path rctd_results     // "RCTD" dir from CSIDE
     path cell2loc_degs    // "CT_Gene_expr" dir from CT_GENE_EXPR_PERCELLTYPE
     path cside_degs       // "CSIDE" dir from CSIDE (for DEGs)
@@ -28,7 +28,7 @@ process COMPARE_CELL2LOC_RCTD {
     def da_cmd = delineation_dir ?
         """
         python3 /usr/local/bin/differential_abundance_.py \\
-            --input_cell2loc  ${cell2loc_map} \\
+            --input_cell2loc  cell2location_map \\
             --input_rctd      ${rctd_results} \\
             --delineation_dir ${delineation_dir} \\
             --samples         ${samples.join(' ')} \\
@@ -48,7 +48,7 @@ process COMPARE_CELL2LOC_RCTD {
     for AREA in ${area_list.join(' ')}; do
         python3 /usr/local/bin/compare_gene_expr.py \\
             --area         \$AREA \\
-            --cell2loc_dir ${cell2loc_map} \\
+            --cell2loc_dir cell2location_map \\
             --rctd_dir     ${rctd_results} \\
             --output_dir   Gene_Expr/\$AREA
 

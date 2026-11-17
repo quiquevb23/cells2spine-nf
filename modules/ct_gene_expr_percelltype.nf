@@ -12,7 +12,7 @@ process CT_GENE_EXPR_PERCELLTYPE {
     val  manual_celltypes
     val  conditions_map
     val  condition_order
-    path cell2loc_map         // "cell2location_map" dir; ct_gene_expr.py reads ./cell2location_map/<sample>/ (base_dir .)
+    path cell2loc_map, stageAs: 'cell2location_map/*'  // per-sample dirs from CELL2LOC_MAP; ct_gene_expr.py reads ./cell2location_map/<sample>/ (base_dir .)
     path cside_results        // "CSIDE" output directory
     path delineation_dir      // "delineation" directory from EXTRACT_SPATIAL_INPUTS, or []
 
@@ -24,7 +24,7 @@ process CT_GENE_EXPR_PERCELLTYPE {
     // ct_gene_expr.py only creates CT_Gene_expr/<area> when limma runs (needs >=2 replicates
     // per condition), so make sure the output dir exists even when everything is skipped.
     // NOTE: it also writes cell2location_map/<sample>/gene_expr_ct_mean/ through the staged
-    // symlink, i.e. into CELL2LOC_OWNDATA's work dir; COMPARE_CELL2LOC_RCTD reads it from there.
+    // symlink, i.e. into each CELL2LOC_MAP task's work dir; COMPARE_CELL2LOC_RCTD reads it from there.
     """
     mkdir -p CT_Gene_expr
     python3 /usr/local/bin/ct_gene_expr.py \\

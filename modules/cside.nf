@@ -13,10 +13,10 @@ process CSIDE {
     val  conditions_map
     val  condition_order
     val  regions              // params.areas list, or [] for whole-sample
-    path cell2loc_map         // output directory from CELL2LOC_OWNDATA
+    path cell2loc_map, stageAs: 'cell2location_map/*'  // collected per-sample dirs from CELL2LOC_MAP
     path coords               // "coords" directory from EXTRACT_SPATIAL_INPUTS
     path delineation          // "delineation" directory, or empty when not configured
-    path sc_ref_data          // "data" directory from CELL2LOC_OWNDATA; CSIDE.R reads <output_base_dir>/data/reference_<cond>
+    path sc_ref_data          // collected reference_<cond> dirs from CELL2LOC_REFERENCE, staged in the work dir: CSIDE.R reads <output_base_dir>/reference_<cond>
 
     output:
     path "RCTD",  emit: rctd_results
@@ -28,7 +28,7 @@ process CSIDE {
     """
     Rscript /usr/local/bin/CSIDE.R \\
         --ref_level         ${ref_level} \\
-        --cell2loc_dir      ${cell2loc_map} \\
+        --cell2loc_dir      cell2location_map \\
         --coords_dir        ${coords} \\
         ${delin_arg} \\
         --output_base_dir   . \\
