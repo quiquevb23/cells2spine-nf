@@ -26,6 +26,9 @@ process CSIDE {
     def regions_arg = regions ? "--regions ${regions.join(',')}" : "--regions ALL_SPOTS"
     def delin_arg   = delineation ? "--delineation_dir ${delineation}" : "--delineation_dir NO_DELINEATION"
     """
+    # CSIDE.R loads <output_base_dir>/reference_<cond>, but the refs are staged under ./data
+    ln -s ${sc_ref_data}/reference_* .
+
     Rscript /usr/local/bin/CSIDE.R \\
         --ref_level         ${ref_level} \\
         --cell2loc_dir      ${cell2loc_map} \\
