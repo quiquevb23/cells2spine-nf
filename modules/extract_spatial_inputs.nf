@@ -27,8 +27,7 @@ process EXTRACT_SPATIAL_INPUTS {
             --spatial_h5ad_glob "${h5ad_glob}"
         """ : ""
     """
-    mkdir -p counts coords
-
+    # conversor.py writes counts/<sample>_counts.csv and coords/<sample>_coords.csv
     python3 /usr/local/bin/conversor.py \\
         --spatial_input ${spatial_input} \\
         --output_base_dir . \\
