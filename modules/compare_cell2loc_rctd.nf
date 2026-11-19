@@ -20,7 +20,14 @@ process COMPARE_CELL2LOC_RCTD {
     val  areas            // params.areas list, or [] for whole-sample
 
     output:
-    path "**"
+    // Only this step's own outputs: "**" also re-published every staged input
+    // (cell2location_map, RCTD, CSIDE, delineation, models...) into Plots/Comparisons.
+    // DEGs/FEs are absent when there are no replicates (empty CT_Gene_expr).
+    path "DA",        optional: true
+    path "PieCharts", optional: true
+    path "Gene_Expr", optional: true
+    path "DEGs",      optional: true
+    path "FEs",       optional: true
 
     script:
     // When areas is empty/null we use WHOLE_SAMPLE sentinel so compare scripts
