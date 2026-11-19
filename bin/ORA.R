@@ -38,7 +38,17 @@ if (length(area_dirs) == 0) {
   area_dirs <- opt$deg_dir
 }
 
+# Run one enrichment step; on error (e.g. KEGG unreachable from compute node,
+# no genes mappable to Entrez) log a warning and continue with the next one.
+try_step <- function(label, expr) {
+  tryCatch(expr, error = function(e) {
+    cat("[WARN]", label, "failed:", conditionMessage(e), "\n")
+    NULL
+  })
+}
+
 convert_to_entrez <- function(genes) {
+  if (length(genes) == 0) return(character(0))
   suppressMessages({
     bitr(genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Rn.eg.db)
   }) %>%
@@ -51,7 +61,9 @@ run_enrichment <- function(gene_list, category = NULL, enrichment_type, output_f
   if (length(gene_list) == 0) return(NULL)
   
   enrich_result <- NULL
-  
+
+  label <- paste("ORA", enrichment_type, category, basename(output_file))
+  try_step(label, {
   if (enrichment_type == "GO") {
     enrich_result <- enrichGO(
       gene          = gene_list,
@@ -83,6 +95,7 @@ run_enrichment <- function(gene_list, category = NULL, enrichment_type, output_f
   if (!is.null(enrich_result) && nrow(as.data.frame(enrich_result)) > 0) {
     write.csv(as.data.frame(enrich_result), output_file, row.names = FALSE)
   }
+  })
 }
 
 # ===== Main loop =====
@@ -126,9 +139,11 @@ for (area_dir in area_dirs) {
     up_genes   <- sig_genes %>% filter(logFC > 0)  %>% pull(gene) %>% unique()
     down_genes <- sig_genes %>% filter(logFC < 0)  %>% pull(gene) %>% unique()
 
-    up_entrez   <- convert_to_entrez(up_genes)
-    down_entrez <- convert_to_entrez(down_genes)
-  
+    up_entrez   <- try_step("Entrez mapping (up)",   convert_to_entrez(up_genes))
+    down_entrez <- try_step("Entrez mapping (down)", convert_to_entrez(down_genes))
+    if (is.null(up_entrez))   up_entrez   <- character(0)
+    if (is.null(down_entrez)) down_entrez <- character(0)
+
     base_filename <- file_path_sans_ext(basename(csv_file))
 
     # GO: BP, CC, MF

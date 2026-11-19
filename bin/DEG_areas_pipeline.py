@@ -29,8 +29,14 @@ def parse_args():
     parser.add_argument("--ref_level", required=True)
     parser.add_argument("--delineation_dir", type=str, default="NO_DELINEATION")
     parser.add_argument("--output_base_dir", required=True)
-    parser.add_argument("--spatial_input", required=True)
+    parser.add_argument("--spatial_input", required=True,
+        help="Root dir with <sample>/outs/matrices/<spatial_h5ad_glob>")
+    parser.add_argument("--spatial_h5ad_glob", default="*_manual_delineation.h5ad")
+    parser.add_argument("--regions", type=str, default="ALL_SPOTS",
+        help="Comma-separated areas to test, or ALL_SPOTS for every area found")
     parser.add_argument("--samples", nargs="+", required=True)
+    parser.add_argument("--bcv", type=float, default=0.4,
+                        help="Fixed biological CV used when a condition has no replicates")
     parser.add_argument("--conditions_map", nargs="+", required=True)
     parser.add_argument("--condition_order", nargs=2, required=True,
         help="Condition contrast order: test first, reference second"
@@ -68,14 +74,20 @@ adatas = []
 for sample in args.samples:
     print(f"Processing sample: {sample}")
 
-    # Flat h5ad, matching conversor.py / cell2loc_owndata.py's layout
-    adata_path = spatial_input / f"{sample}.h5ad"
-    if not adata_path.exists():
-        raise FileNotFoundError(adata_path)
-    adata = sc.read_h5ad(adata_path)
+    # Same layout as conversor.py / extract_delineation.py
+    sample_path = spatial_input / sample / "outs" / "matrices"
+    matches = sorted(sample_path.glob(args.spatial_h5ad_glob))
+    if not matches:
+        raise FileNotFoundError(f"No h5ad matching '{args.spatial_h5ad_glob}' in {sample_path}")
+    adata = sc.read_h5ad(matches[0])
+
+    if sample not in condition_map:
+        raise KeyError(f"Sample {sample} missing from --conditions_map")
+    adata.obs["sample"] = sample
+    adata.obs["condition"] = condition_map[sample]
 
     if args.delineation_dir != "NO_DELINEATION":
-        delin_file = data_dir_placeholder = Path(args.delineation_dir) / f"{sample}_manual_delineation.csv"
+        delin_file = Path(args.delineation_dir) / f"{sample}_manual_delineation.csv"
         if not delin_file.exists():
             raise FileNotFoundError(delin_file)
         df_delineation = pd.read_csv(delin_file, index_col=0)
@@ -179,9 +191,18 @@ def do_DEA(combined_adata, area_output_dir, area):
 
     dge = r("dge[keep, , keep.lib.sizes=FALSE]")
     dge = edgeR.normLibSizes(dge)
-    dge = edgeR.estimateDisp(dge)
 
-    de = edgeR.exactTest(dge)
+    # Without replicates edgeR cannot estimate dispersion (NA -> exactTest fails).
+    # Fall back to a fixed BCV, as the edgeR user guide suggests ("no replicates").
+    min_reps = pseudobulk_metadata["condition"].value_counts().min()
+    if min_reps >= 2:
+        dge = edgeR.estimateDisp(dge)
+        de = edgeR.exactTest(dge)
+    else:
+        print(f"[WARN] Area {area}: no replication within a condition; "
+              f"using fixed BCV={args.bcv} (dispersion={args.bcv ** 2:.3f}). "
+              f"p-values are indicative only.")
+        de = edgeR.exactTest(dge, dispersion=args.bcv ** 2)
     results = edgeR.topTags(de, n=r("nrow")(dge)).rx2("table")
 
     with localconverter(ro.default_converter + pandas2ri.converter):
@@ -209,6 +230,13 @@ all_areas = set()
 for adata in adatas:
     all_areas.update(adata.obs["manual_delineation"].unique())
     print(all_areas)
+
+if args.regions != "ALL_SPOTS":
+    requested = [a.strip() for a in args.regions.split(",") if a.strip()]
+    missing = [a for a in requested if a not in all_areas]
+    if missing:
+        print(f"[WARN] Requested regions not found in any sample: {missing}")
+    all_areas = [a for a in requested if a in all_areas]
 
 for area in all_areas:
     area_adatas = []

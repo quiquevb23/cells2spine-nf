@@ -102,7 +102,8 @@ workflow {
         areaList,
         CELL2LOC_OWNDATA.out.cell2loc_map,
         EXTRACT_SPATIAL_INPUTS.out.coords,
-        delineationCh
+        delineationCh,
+        CELL2LOC_OWNDATA.out.sc_ref_data
     )
 
     // ------------------------------------------------------------------
@@ -116,6 +117,7 @@ workflow {
         params.manual_celltypes,
         conditions_map,
         params.condition_order,
+        CELL2LOC_OWNDATA.out.cell2loc_map,
         CSIDE.out.cside_results,
         delineationCh
     )
@@ -127,8 +129,11 @@ workflow {
     // ------------------------------------------------------------------
     // 5. DEG by area (independent branch, parallel with CSIDE chain)
     // ------------------------------------------------------------------
+    // NOTE: DEG_areas_pipeline.py reads the raw h5ad (needs full counts + obs),
+    //       so it gets spatial_input like CELL2LOC_OWNDATA, not the counts CSVs.
     DEG_AREA_PIPELINE(
-        EXTRACT_SPATIAL_INPUTS.out.counts,
+        file(params.spatial_input),
+        params.spatial_h5ad_glob,
         params.ref_level,
         samples,
         conditions_map,
@@ -173,10 +178,16 @@ workflow {
     // 7. Comparisons (cell2loc vs RCTD/CSIDE)
     // ------------------------------------------------------------------
     COMPARE_CELL2LOC_RCTD(
+        params.ref_level,
+        samples,
+        conditions_map,
+        params.condition_order,
         CELL2LOC_OWNDATA.out.cell2loc_map,
         CSIDE.out.rctd_results,
         CT_GENE_EXPR_PERCELLTYPE.out.results,
         CSIDE.out.cside_results,
+        CT_GENE_EXPR_ENRICHMENT.out.results,
+        delineationCh,
         areaList
     )
 }

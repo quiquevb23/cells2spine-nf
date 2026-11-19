@@ -23,21 +23,38 @@ def parse_args():
 def clean_ct_name(ct):
     return re.sub(r'^meanscell_abundance_w_sf_', '', ct)
 
-def process(file_path, sample_out_dir, sample_name, sample_path):
+def write_coords(adata, coords_dir, sample_name):
+    """<coords_dir>/<sample>_coords.csv (barcode, imagerow, imagecol) for CSIDE.R / RCTD."""
+    if 'imagerow' in adata.obs and 'imagecol' in adata.obs:
+        coords = adata.obs[['imagerow', 'imagecol']].copy()
+    elif 'spatial' in adata.obsm:
+        # obsm['spatial'] is (x, y) = (imagecol, imagerow) in full-res pixels
+        xy = adata.obsm['spatial']
+        coords = pd.DataFrame({'imagerow': xy[:, 1], 'imagecol': xy[:, 0]}, index=adata.obs_names)
+    elif 'array_row' in adata.obs and 'array_col' in adata.obs:
+        coords = adata.obs[['array_row', 'array_col']].rename(
+            columns={'array_row': 'imagerow', 'array_col': 'imagecol'})
+    else:
+        raise KeyError(f"No spatial coordinates for {sample_name}: need obs imagerow/imagecol, "
+                       f"obsm['spatial'] or obs array_row/array_col")
+    coords.to_csv(os.path.join(coords_dir, f"{sample_name}_coords.csv"))
+    print(f"[OK] wrote {sample_name}_coords.csv ({len(coords)} spots)")
+
+
+def write_counts(adata, counts_dir, sample_name):
+    """<counts_dir>/<sample>_counts.csv, genes x spots raw counts (read by run_masigpro.R)."""
+    counts = adata.layers['counts'] if 'counts' in adata.layers else adata.X
+    counts = sp.csr_matrix(counts).T.tocsr()
+    df = pd.DataFrame.sparse.from_spmatrix(counts, index=adata.var_names, columns=adata.obs_names)
+    df.to_csv(os.path.join(counts_dir, f"{sample_name}_counts.csv"))
+    print(f"[OK] wrote {sample_name}_counts.csv ({counts.shape[0]} genes x {counts.shape[1]} spots)")
+
+
+def process(file_path, sample_out_dir, sample_name, sample_path, coords_dir, counts_dir):
     adata = sc.read_h5ad(file_path)
 
-    # Save raw spatial counts
-    #counts = adata.layers['counts'].T if 'counts' in adata.layers else adata.X.T
-    #counts = sp.csr_matrix(counts)
-    #df = pd.DataFrame.sparse.from_spmatrix(counts, index=adata.var_names, columns=adata.obs_names)
-    #df.to_csv(os.path.join(sample_out_dir, f"{sample_name}_counts.csv"))
-
-    # Save coordinates for each sample
-    #if 'array_row' in adata.obs and 'array_col' in adata.obs:
-    #    adata.obs[['array_row', 'array_col']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coords.csv"))
-
-    if 'imagerow' in adata.obs and 'imagecol' in adata.obs:
-        adata.obs[['imagerow', 'imagecol']].to_csv(os.path.join(sample_out_dir, f"{sample_name}_coords.csv"))
+    write_coords(adata, coords_dir, sample_name)
+    write_counts(adata, counts_dir, sample_name)
 
 
     # Extract mapping of 'manual_delineation'
@@ -71,6 +88,11 @@ if __name__ == "__main__":
 
     out_dir = os.path.join(args.output_base_dir, "data")
     os.makedirs(out_dir, exist_ok=True)
+    # EXTRACT_SPATIAL_INPUTS declares these two as its outputs
+    coords_dir = os.path.join(args.output_base_dir, "coords")
+    counts_dir = os.path.join(args.output_base_dir, "counts")
+    os.makedirs(coords_dir, exist_ok=True)
+    os.makedirs(counts_dir, exist_ok=True)
 
     spatial_input = args.spatial_input
 
@@ -90,10 +112,16 @@ if __name__ == "__main__":
 
             sample_out_dir = os.path.join(out_dir, sample_name)
             os.makedirs(sample_out_dir, exist_ok=True)
-            process(full_path, sample_out_dir, sample_name, sample_path)
+            process(full_path, sample_out_dir, sample_name, sample_path, coords_dir, counts_dir)
 
             print(f"✅ Finished {sample_name}")
 
         except Exception as e:
             print(f"🔥 ERROR in {sample_name}: {e}")
             raise  # rethrow so you SEE the failure
+
+    # Fail loudly instead of handing CSIDE an empty coords dir
+    missing = [s for s in samples
+               if not os.path.exists(os.path.join(coords_dir, f"{s}_coords.csv"))]
+    if missing:
+        raise SystemExit(f"No coords written for samples: {missing} (h5ad not found?)")

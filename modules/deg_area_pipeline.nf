@@ -5,7 +5,8 @@ process DEG_AREA_PIPELINE {
     publishDir "${params.outdir}/DEA_areas_good", mode: 'copy'
 
     input:
-    path counts_dir
+    path spatial_input        // raw h5ad root: <spatial_input>/<sample>/outs/matrices/<glob>
+    val  h5ad_glob
     val  ref_level
     val  samples
     val  conditions_map
@@ -14,7 +15,7 @@ process DEG_AREA_PIPELINE {
     val  regions              // params.areas list, or [] for whole-sample
 
     output:
-    path "DEA_areas_good/**", emit: deg_dir
+    path "DEA_areas_good", emit: deg_dir
 
     script:
     def delin_arg   = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
@@ -23,7 +24,8 @@ process DEG_AREA_PIPELINE {
     python3 /usr/local/bin/DEG_areas_pipeline.py \\
         --ref_level         ${ref_level} \\
         --output_base_dir   . \\
-        --counts_dir        ${counts_dir} \\
+        --spatial_input     ${spatial_input} \\
+        --spatial_h5ad_glob "${h5ad_glob}" \\
         --samples           ${samples.join(' ')} \\
         --conditions_map    ${conditions_map.join(' ')} \\
         --condition_order   ${condition_order.join(' ')} \\

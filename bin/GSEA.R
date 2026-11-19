@@ -49,6 +49,15 @@ if (length(area_dirs) == 0) {
 
 if (!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 
+# Run one enrichment step; on error (e.g. KEGG unreachable from compute node,
+# no genes mappable to Entrez) log a warning and continue with the next one.
+try_step <- function(label, expr) {
+  tryCatch(expr, error = function(e) {
+    cat("[WARN]", label, "failed:", conditionMessage(e), "\n")
+    NULL
+  })
+}
+
 run_gsea_go <- function(ranked_genes, category, output_file) {
   gsea_result <- gseGO(
     geneList = ranked_genes,
@@ -171,17 +180,18 @@ for (area_dir in area_dirs) {
     # Run GSEA for GO categories
     for (category in c("BP", "CC", "MF")) {
       out_file <- file.path(area_output_dir, paste0(base_filename, "_GSEA_GO_", category, ".csv"))
-      run_gsea_go(ranked_genes, category, out_file)
+      try_step(paste("GSEA GO", category, base_filename), run_gsea_go(ranked_genes, category, out_file))
       }
 
     # Prepare Entrez once for both KEGG & Reactome
-    ranked_entrez <- prepare_entrez_ranking(ranked_genes)
+    ranked_entrez <- try_step(paste("Entrez mapping", base_filename), prepare_entrez_ranking(ranked_genes))
+    if (is.null(ranked_entrez) || length(ranked_entrez) == 0) next
     
     # KEGG
-    run_gsea_kegg(ranked_entrez, file.path(area_output_dir, paste0(base_filename, "_GSEA_KEGG.csv")))
+    try_step(paste("GSEA KEGG", base_filename), run_gsea_kegg(ranked_entrez, file.path(area_output_dir, paste0(base_filename, "_GSEA_KEGG.csv"))))
 
     # Reactome
-    run_gsea_reactome(ranked_entrez, file.path(area_output_dir, paste0(base_filename, "_GSEA_Reactome.csv")))
+    try_step(paste("GSEA Reactome", base_filename), run_gsea_reactome(ranked_entrez, file.path(area_output_dir, paste0(base_filename, "_GSEA_Reactome.csv"))))
   }
 }
 

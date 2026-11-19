@@ -192,6 +192,7 @@ def main():
     cell2loc_adatas_path = os.path.join(args.output_base_dir, "cell2location_map")
     rctd_csv_path = os.path.join(args.output_base_dir, "RCTD") #here we have the folders for each sample with the weights as csv
     output_dir = args.pie_chart_dir
+    os.makedirs(output_dir, exist_ok=True)
     samples_list = args.samples
 
     # method_name -> area -> sample -> avg cell proportions
@@ -205,7 +206,8 @@ def main():
 
     for sample in samples_list:
         rctd_path = os.path.join(rctd_csv_path, sample, f"{sample}_RCTD_weights.csv")
-        adata_path = os.path.join(cell2loc_adatas_path, f"sp{sample}.h5ad")
+        # cell2loc_owndata.py writes cell2location_map/{sample}/sp{sample}.h5ad
+        adata_path = os.path.join(cell2loc_adatas_path, sample, f"sp{sample}.h5ad")
 
         if not os.path.exists(rctd_path):
             print(f"RCTD CSV not found for {sample} at {rctd_path}")
@@ -277,6 +279,9 @@ def main():
         rctd_output_dir = os.path.join(output_dir, "RCTD_deconv_scores")
         os.makedirs(rctd_output_dir, exist_ok=True)
 
+        library_id = list(adata_scores.uns["spatial"].keys())[0]
+        img_key = "hires" if "hires" in adata_scores.uns["spatial"][library_id]["images"] else "lowres"
+
         # Plot spatial plots for raw RCTD scores
         for celltype in matching_columns:
             colname = celltype + '_rctd_raw'
@@ -305,8 +310,12 @@ def main():
             cell_colors = {cell: palette[i] for i, cell in enumerate(matching_columns)}
 
         # Compute average proportions per area
-        for area in adata_scores.obs['manual_delineation'].unique():
-            mask = adata_scores.obs['manual_delineation'] == area
+        if 'manual_delineation' in adata_scores.obs.columns:
+            areas_obs = adata_scores.obs['manual_delineation'].astype(str)
+        else:
+            areas_obs = pd.Series("WHOLE_SAMPLE", index=adata_scores.obs_names)
+        for area in areas_obs.unique():
+            mask = (areas_obs == area).values
             avg_rctd = rctd_norm[mask].mean().reindex(matching_columns)
             avg_cell2loc = cell2loc_norm[mask].mean().reindex(matching_columns)
 

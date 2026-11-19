@@ -115,8 +115,9 @@ def main():
     parser.add_argument("--input_cell2loc", required=True)
     parser.add_argument("--input_rctd", required=True)
     parser.add_argument("--out_dir", required=True)
-    parser.add_argument("--data_dir", required=True)
-    parser.add_argument("--ref_label", required=True)
+    parser.add_argument("--delineation_dir", required=True,
+                        help="Dir with <sample>_manual_delineation.csv (EXTRACT_SPATIAL_INPUTS output)")
+    parser.add_argument("--ref_label", default=None)  # unused
     parser.add_argument("--masked_celltypes", nargs="*", default=[])
     parser.add_argument("--samples", nargs="+", required=True)
     parser.add_argument("--conditions_map", nargs="+", required=True,
@@ -146,7 +147,7 @@ def main():
             sample
         )
         df_area = load_area(
-            os.path.join(args.data_dir, sample, f"{sample}_manual_delineation.csv")
+            os.path.join(args.delineation_dir, f"{sample}_manual_delineation.csv")
         )
 
         for df in (df_c2l, df_rctd):
