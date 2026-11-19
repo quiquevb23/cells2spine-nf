@@ -1,6 +1,8 @@
 process COMPARE_CELL2LOC_RCTD {
     tag "compare"
-    label 'process_low'
+    // scCODA HMC (20k samples per area x method) keeps per-spot traces in RAM:
+    // OOM-killed at 8 GB, so medium (8 CPU / 32 GB / 8h).
+    label 'process_medium'
     container params.container_rpy2
     publishDir "${params.outdir}/Plots/Comparisons", mode: 'copy'
 
