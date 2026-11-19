@@ -8,11 +8,12 @@ COPY envs/activate-enrichment.R ./renv/activate.R
 # Restore renv into the SITE library. Without `library =`, renv restores into
 # /workspace/renv/library, which Rscript never sees from a Nextflow work dir
 # (GSEA.R/ORA.R only call renv::activate() if a renv.lock is in the cwd).
-RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')" \
-    && R -e "renv::restore(lockfile = 'renv.lock', library = '/usr/local/lib/R/site-library', confirm = FALSE)" \
-    && R -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager'); BiocManager::install(c('maSigPro', 'edgeR'), update = FALSE, ask = FALSE)" \
-    && R -e "install.packages('optparse', repos = 'https://cloud.r-project.org')" \
-    && R -e "for (p in c('optparse', 'clusterProfiler', 'org.Rn.eg.db', 'ReactomePA', 'dplyr', 'readr', 'stringr', 'maSigPro', 'tidyverse', 'edgeR')) library(p, character.only = TRUE)"
+# (separate RUN steps so a CI failure names the step that broke)
+RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org')"
+RUN R -e "renv::restore(lockfile = 'renv.lock', library = '/usr/local/lib/R/site-library', confirm = FALSE)"
+RUN R -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager'); BiocManager::install(c('maSigPro', 'edgeR', 'tidyverse'), update = FALSE, ask = FALSE)"
+RUN R -e "install.packages('optparse', repos = 'https://cloud.r-project.org')"
+RUN R -e "for (p in c('optparse', 'clusterProfiler', 'org.Rn.eg.db', 'ReactomePA', 'dplyr', 'readr', 'stringr', 'maSigPro', 'tidyverse', 'edgeR')) { cat('loading', p, '\n'); library(p, character.only = TRUE) }"
 
 # Copy scripts from bin into system PATH
 COPY bin/GSEA.R bin/ORA.R bin/run_masigpro.R /usr/local/bin/

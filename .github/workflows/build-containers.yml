@@ -8,6 +8,7 @@ on:
       - 'docker/**'
       - 'envs/**'
       - 'bin/**'
+      - '.github/workflows/build-containers.yml'
 
 jobs:
   build:
@@ -17,6 +18,8 @@ jobs:
       packages: write
 
     strategy:
+      # build every image even if another one fails (default would cancel the rest)
+      fail-fast: false
       matrix:
         include:
           - name: cell2loc
