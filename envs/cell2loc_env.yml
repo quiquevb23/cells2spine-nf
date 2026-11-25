@@ -22,10 +22,24 @@ dependencies:
   - botocore
   - aiobotocore
   - pip:
-      - cell2location
-      - scvi-tools
-      - pyro-ppl
-      - mudata
+      # Pinned to the versions in the working :latest image (2026-11-24).
+      # Unpinned, a rebuild pulled an incompatible pyro-ppl and
+      # `import cell2location` failed (ImportError: deep_getattr).
+      - "cell2location==0.1.4"
+      - "scvi-tools==1.1.6.post2"
+      - "pyro-ppl==1.9.1"
+      - "numpyro==0.19.0"
+      - "jax==0.4.30"
+      - "jaxlib==0.4.30"
+      - "torch==2.7.1"
+      - "lightning==2.6.0"
+      - "pytorch-lightning==2.6.0"
+      - "anndata==0.10.8"
+      - "scanpy==1.10.3"
+      - "mudata==0.2.4"
+      - "numpy==1.26.4"
+      - "pandas==2.3.1"
+      - "scipy==1.13.1"
       - stlearn
       - "numba==0.59.1"
       - "llvmlite==0.42.0"

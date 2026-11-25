@@ -16,52 +16,46 @@ import cell2location
 from scipy import sparse
 from scipy.sparse import csr_matrix
 import re
+import glob
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Process directories for single-cell data.")
+    parser = argparse.ArgumentParser(
+        description="cell2location, split into one job per condition (reference) "
+                    "and one job per sample (map) so memory does not scale with sample count.")
 
-    parser.add_argument('--ref_level', type=str, required=True)
-    parser.add_argument('--single_cell_ref', type=str, required=True)
-    parser.add_argument('--spatial_input', type=str, required=True)  # renamed from base_dir
+    parser.add_argument('--mode', choices=['reference', 'map'], required=True,
+        help="reference: train the RegressionModel for ONE condition; "
+             "map: run Cell2location for ONE spatial sample")
     parser.add_argument('--output_base_dir', type=str, required=True)
-    parser.add_argument("--conditions", help="Comma-separated list of conditions")
-    parser.add_argument('--ref_label', type=str, required=True)
+    parser.add_argument('--condition', type=str, required=True,
+        help="reference: condition to train; map: condition of --sample (selects its reference)")
+
+    # --mode reference
+    parser.add_argument('--single_cell_ref', type=str)
+    parser.add_argument('--ref_label', type=str)
     parser.add_argument('--masked_celltypes', type=str, default="")
+
+    # --mode map
+    parser.add_argument('--spatial_input', type=str)
+    parser.add_argument('--sample', type=str)
+    parser.add_argument('--spatial_h5ad_glob', type=str, default="*_manual_delineation.h5ad")
     parser.add_argument('--cutoff_celltypes', type=float, default=0.5)
 
-    # NEW: samples (multiple values allowed)
-    parser.add_argument("--samples", nargs="+", help="List of spatial sample names")
-    parser.add_argument("--conditions_map", type=str, nargs="+", required=True,
-        help="Mapping of samples to conditions, in the form 'sample:condition'.")
-
-    # Parse the arguments
-    return parser.parse_args()
-
-def parse_conditions_map(conditions_list):
-    """
-    Convert ['Spatial_1:healthy', 'Spatial_2:disease'] -> {'Spatial_1': 'healthy', 'Spatial_2': 'disease'}
-    """
-    mapping = {}
-    for item in conditions_list:
-        if ":" not in item:
-            raise ValueError(f"Condition map entry '{item}' is not in 'sample:condition' format")
-        sample, condition = item.split(":", 1)
-        mapping[sample] = condition
-    return mapping
+    args = parser.parse_args()
+    required = {'reference': ['single_cell_ref', 'ref_label'],
+                'map':       ['spatial_input', 'sample']}[args.mode]
+    missing = [a for a in required if getattr(args, a) is None]
+    if missing:
+        parser.error(f"--mode {args.mode} requires: " + ", ".join('--' + a for a in missing))
+    return args
 
 
 args = parse_args()
 
-spatial_input = args.spatial_input
 output_base_dir = args.output_base_dir
-ref_level = args.ref_level
 ref_label = args.ref_label
-conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
-single_cell_ref_h5 = args.single_cell_ref
 masked_celltypes_raw = [x.strip() for x in args.masked_celltypes.split(",") if x.strip()]
 cutoff_ct = args.cutoff_celltypes
-samples = args.samples
-conditions_map = parse_conditions_map(args.conditions_map)
 
 
 run_name = os.path.join(output_base_dir, "cell2location_map")
@@ -198,7 +192,7 @@ def deconvolution(adata_vis, sample, condition, cutoff_ct):
         index=adata_vis.var_names,
         columns=adata_vis.obs_names
     )
-    df.to_csv(os.path.join(sample_out_dir, f"{sample_name}_counts.csv"))
+    df.to_csv(os.path.join(sample_out_dir, f"{sample}_counts.csv"))
 
     # Ensure X is sparse
     if not sparse.issparse(adata_vis.X):
@@ -446,6 +440,11 @@ def deconvolution_training(adata_vis, inf_aver, sample, sample_out_dir, plots_di
         counts_ct_filt_sparse = sparse.csr_matrix(counts_ct_filt.T.values)  
         adata_vis.obsm[n] = counts_ct_filt_sparse
 
+        # free this cell type's expected-expression matrix (outputs unchanged;
+        # keeps peak memory of a per-sample CELL2LOC_MAP job down)
+        expected_dict['mu'][i] = None
+        del mu_ct, counts_ct, counts_ct_filt, counts_ct_filt_sparse
+
         print(f"{n} stored in adata_vis.obsm (filtered)")
 
     '''
@@ -497,63 +496,45 @@ def filter_small_celltypes(adata, celltype_col, min_cells=25):
     return adata[adata.obs[celltype_col].isin(valid_celltypes)].copy()
 
 
-# First create the regression mod for reference single cell
-##############################
-##############################
+# ---------------------------------------------------------------------------
+# Main: one condition (reference) or one sample (map) per invocation
+# ---------------------------------------------------------------------------
+# Layout (relative to --output_base_dir), unchanged from the single-job version:
+#   cell2location_map/reference_signatures_<condition>/   (reference mode writes,
+#                                                          map mode reads)
+#   cell2location_map/<sample>/                            (map mode writes)
+#   Plots/Cell2loc/<sample>/                               (map mode writes)
 
-
-#COMMENT TO NOT RUN THE MODEL ON SC DATA AGAIN
-
-
-
-adata_ref = sc.read(single_cell_ref_h5)
-
-print(conditions)
-
-for cond in conditions:
-    print(cond)
-    print(ref_label)
-    print(masked_celltypes)
+if args.mode == 'reference':
+    cond = args.condition
+    adata_ref = sc.read(args.single_cell_ref)
     adata_ref_cond = adata_ref[adata_ref.obs['condition'] == cond].copy()
+    del adata_ref  # free the full multi-condition reference before training
+    if adata_ref_cond.n_obs == 0:
+        raise SystemExit(f"No cells with obs['condition'] == '{cond}' in {args.single_cell_ref}")
+
+    print(f"Condition: {cond} | ref_label: {ref_label} | masked: {masked_celltypes}")
     adata_ref_cond = adata_ref_cond[~adata_ref_cond.obs[ref_label].isin(masked_celltypes)].copy()
     adata_ref_cond = filter_small_celltypes(adata_ref_cond, ref_label, min_cells=10)
     create_reference_model(adata_ref_cond, cond)
 
+else:  # map
+    sample_name = args.sample
+    sample_path = os.path.join(args.spatial_input, sample_name, "outs", "matrices")
+    matches = sorted(glob.glob(os.path.join(sample_path, args.spatial_h5ad_glob)))
+    if not matches:
+        raise SystemExit(f"No h5ad matching '{args.spatial_h5ad_glob}' in {sample_path}")
+    # Previous versions hard-coded <sample>_manual_delineation.h5ad: prefer it if present
+    preferred = os.path.join(sample_path, f"{sample_name}_manual_delineation.h5ad")
+    if preferred in matches:
+        matches = [preferred]
+    elif len(matches) > 1:
+        print(f"[WARN] {len(matches)} h5ad files match '{args.spatial_h5ad_glob}' in {sample_path}; "
+              f"using {os.path.basename(matches[0])}")
 
+    ref_dir = os.path.join(run_name, f"reference_signatures_{args.condition}")
+    if not os.path.exists(os.path.join(ref_dir, "sc.h5ad")):
+        raise SystemExit(f"Reference signatures not found: {ref_dir}/sc.h5ad")
 
-########################################################
-#Call black replaced to be dynamic
-
-for sample_name in samples:
-    sample_path = os.path.join(spatial_input, sample_name, "outs", "matrices")
-    #h5ad_file = f"{sample_name}_aligned_crop.h5ad"
-    #h5ad_file = f"adata_{sample_name}_orig.h5ad"
-    h5ad_file = f"{sample_name}_manual_delineation.h5ad"
-
-    h5ad_path = os.path.join(sample_path, h5ad_file)
-    if os.path.exists(h5ad_path):
-        adata = sc.read_h5ad(h5ad_path)
-
-        # Use condition from adata.obs or map externally if needed
-        #conditions_in_sample = adata.obs['condition'].unique()
-        #assert len(conditions_in_sample) == 1, f"Multiple conditions found in {sample_name}"
-        #cond = conditions_in_sample[0]
-        
-        # Map conditions from dictionary
-        cond = conditions_map[sample_name]
-        deconvolution(adata, sample_name, cond, cutoff_ct)
-
-'''
-for file_name in os.listdir(spatial_input):
-    if file_name.startswith('Spatial'):
-        sample_name = file_name
-        sample_path = os.path.join(spatial_input, sample_name, "outs", "matrices")
-        h5ad_file = f"adata_{sample_name}_manual_delineation_good.h5ad"
-        h5ad_path = os.path.join(sample_path, h5ad_file)
-        if os.path.exists(h5ad_path):
-            adata = sc.read_h5ad(h5ad_path)
-            # Conditions used for pairwise testing: give just 2 groups
-            conditions = adata.obs['condition'].unique()
-            assert len(conditions) == 1, f"Multiple conditions found in {sample_name}"
-            deconvolution(adata, sample_name, conditions[0])
-'''
+    adata = sc.read_h5ad(matches[0])
+    deconvolution(adata, sample_name, args.condition, cutoff_ct)

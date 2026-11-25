@@ -5,7 +5,8 @@ nextflow.enable.dsl = 2
 // Module imports
 // ---------------------------------------------------------------------------
 include { EXTRACT_SPATIAL_INPUTS   } from './modules/extract_spatial_inputs'
-include { CELL2LOC_OWNDATA         } from './modules/cell2loc_owndata'
+include { CELL2LOC_REFERENCE       } from './modules/cell2loc_owndata'
+include { CELL2LOC_MAP             } from './modules/cell2loc_owndata'
 include { CSIDE                    } from './modules/cside'
 include { CT_GENE_EXPR_PERCELLTYPE } from './modules/ct_gene_expr_percelltype'
 include { CT_GENE_EXPR_ENRICHMENT  } from './modules/ct_gene_expr_enrichment'
@@ -71,22 +72,39 @@ workflow {
         : Channel.value([])
 
     // ------------------------------------------------------------------
-    // 2. Cell2Location deconvolution + reference extraction
-    // NOTE: cell2loc_owndata.py reads h5ad directly — pass spatial_input,
-    //       NOT counts (those are only for downstream CSV-based steps).
+    // 2. Cell2Location: reference per condition, mapping per sample
+    //    (memory per job no longer scales with the number of samples)
     // ------------------------------------------------------------------
-    CELL2LOC_OWNDATA(
-        params.ref_level,
+    def conditionList = params.conditions.tokenize(',').collect { it.trim() }.findAll { it }
+    def unknownConds  = params.sample_metadata.collect { it.condition }.unique().findAll { !(it in conditionList) }
+    if (unknownConds) {
+        error "sample_metadata uses condition(s) ${unknownConds} that are not in params.conditions (${conditionList}); " +
+              "those samples would get no cell2location reference"
+    }
+
+    CELL2LOC_REFERENCE(
+        Channel.fromList(conditionList),
         file(params.single_cell_ref),
-        file(params.spatial_input),
         params.ref_label,
-        params.conditions,
-        params.masked_celltypes,
-        params.cutoff_celltypes,
-        params.manual_celltypes,
-        samples,
-        conditions_map
+        params.masked_celltypes
     )
+
+    // [condition, sample] joined with that condition's reference signatures
+    def sampleCondCh = Channel.fromList(params.sample_metadata)
+        .map { m -> tuple(m.condition, m.sample) }
+    def mapInputCh = sampleCondCh.combine(CELL2LOC_REFERENCE.out.signatures, by: 0)
+
+    CELL2LOC_MAP(
+        mapInputCh,
+        file(params.spatial_input),
+        params.spatial_h5ad_glob,
+        params.cutoff_celltypes
+    )
+
+    // Gathered once all samples / conditions are done; downstream modules stage
+    // these as ./cell2location_map/<sample> and ./data/reference_<cond>
+    def cell2locMapCh = CELL2LOC_MAP.out.sample_dir.collect()
+    def scRefDataCh   = CELL2LOC_REFERENCE.out.sc_ref_data.collect()
 
     // ------------------------------------------------------------------
     // 3. CSIDE (runs RCTD internally, then CSIDE DE per region)
@@ -100,10 +118,10 @@ workflow {
         conditions_map,
         params.condition_order,
         areaList,
-        CELL2LOC_OWNDATA.out.cell2loc_map,
+        cell2locMapCh,
         EXTRACT_SPATIAL_INPUTS.out.coords,
         delineationCh,
-        CELL2LOC_OWNDATA.out.sc_ref_data
+        scRefDataCh
     )
 
     // ------------------------------------------------------------------
@@ -117,7 +135,7 @@ workflow {
         params.manual_celltypes,
         conditions_map,
         params.condition_order,
-        CELL2LOC_OWNDATA.out.cell2loc_map,
+        cell2locMapCh,
         CSIDE.out.cside_results,
         delineationCh
     )
@@ -130,7 +148,7 @@ workflow {
     // 5. DEG by area (independent branch, parallel with CSIDE chain)
     // ------------------------------------------------------------------
     // NOTE: DEG_areas_pipeline.py reads the raw h5ad (needs full counts + obs),
-    //       so it gets spatial_input like CELL2LOC_OWNDATA, not the counts CSVs.
+    //       so it gets spatial_input like CELL2LOC_MAP, not the counts CSVs.
     DEG_AREA_PIPELINE(
         file(params.spatial_input),
         params.spatial_h5ad_glob,
@@ -182,7 +200,7 @@ workflow {
         samples,
         conditions_map,
         params.condition_order,
-        CELL2LOC_OWNDATA.out.cell2loc_map,
+        cell2locMapCh,
         CSIDE.out.rctd_results,
         CT_GENE_EXPR_PERCELLTYPE.out.results,
         CSIDE.out.cside_results,
