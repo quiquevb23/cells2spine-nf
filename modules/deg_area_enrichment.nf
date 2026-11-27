@@ -1,15 +1,15 @@
 // modules/deg_area_enrichment.nf
 process DEG_AREA_ENRICHMENT {
-    tag "GSEA/ORA - per-area"
+    tag "${cid} GSEA/ORA - per-area"
     label 'process_medium'
     container params.container_enrichment
-    publishDir "${params.outdir}/DEA_areas_good", mode: 'copy'
+    publishDir "${params.outdir}/contrasts/${cid}/DEA_areas_good", mode: 'copy'
 
     input:
-    path deg_dir
+    tuple val(cid), path(deg_dir)
 
     output:
-    path "FunctionalEnrichment", emit: results
+    tuple val(cid), path("FunctionalEnrichment"), emit: results
 
     script:
     """

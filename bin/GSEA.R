@@ -59,6 +59,7 @@ try_step <- function(label, expr) {
 }
 
 run_gsea_go <- function(ranked_genes, category, output_file) {
+  set.seed(42)  # fgsea permutation seeds come from R's RNG: reproducible reruns
   gsea_result <- gseGO(
     geneList = ranked_genes,
     OrgDb = org.Rn.eg.db,
@@ -101,6 +102,7 @@ prepare_entrez_ranking <- function(ranked_genes) {
 }
 
 run_gsea_kegg <- function(ranked_entrez, output_file) {
+  set.seed(42)  # fgsea permutation seeds come from R's RNG: reproducible reruns
   gsea_result <- gseKEGG(
     geneList     = ranked_entrez,
     organism     = "rno",
@@ -119,6 +121,7 @@ run_gsea_kegg <- function(ranked_entrez, output_file) {
 }
 
 run_gsea_reactome <- function(ranked_entrez, output_file) {
+  set.seed(42)  # fgsea permutation seeds come from R's RNG: reproducible reruns
   gsea_result <- gsePathway(
     geneList     = ranked_entrez,
     organism     = "rat",

@@ -81,6 +81,6 @@ process CELL2LOC_MAP {
     stub:
     """
     mkdir -p cell2location_map/${sample} Plots/Cell2loc/${sample}
-    touch cell2location_map/${sample}/${sample}_counts.csv
+    touch cell2location_map/${sample}/${sample}_counts.csv cell2location_map/${sample}/${sample}_cell2loc_weights.csv
     """
 }

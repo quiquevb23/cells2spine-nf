@@ -1,32 +1,40 @@
+// One task per pairwise contrast, condition_order = [test, ref].
 process CT_GENE_EXPR_PERCELLTYPE {
-    tag "${ref_level}"
+    tag "${cid}"
     label 'process_medium'
     container params.container_rpy2
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir "${params.outdir}/contrasts/${cid}", mode: 'copy', pattern: 'CT_Gene_expr'
 
     input:
-    val  ref_level
-    val  masked_celltypes
-    val  conditions
-    val  samples
+    tuple val(cid), val(samples), val(conditions_map), val(condition_order), path(cside_results)  // "CSIDE" dir of this contrast
     val  manual_celltypes
-    val  conditions_map
-    val  condition_order
-    path cell2loc_map, stageAs: 'cell2location_map/*'  // per-sample dirs from CELL2LOC_MAP; ct_gene_expr.py reads ./cell2location_map/<sample>/ (base_dir .)
-    path cside_results        // "CSIDE" output directory
+    path cell2loc_map, stageAs: 'c2l_in/*'   // per-sample dirs from CELL2LOC_MAP
     path delineation_dir      // "delineation" directory from EXTRACT_SPATIAL_INPUTS, or []
 
     output:
-    path "CT_Gene_expr", emit: results
+    tuple val(cid), path("CT_Gene_expr"),      emit: results
+    // this contrast's cell2location_map/<sample> (upstream files symlinked + the
+    // gene_expr_ct_mean/ written here), read by COMPARE_CELL2LOC_RCTD
+    tuple val(cid), path("cell2location_map"), emit: cell2loc_map
 
     script:
     def delin_arg = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
+    // ct_gene_expr.py writes ./cell2location_map/<sample>/gene_expr_ct_mean/. Its content
+    // depends on this contrast's CSIDE gene filter, so build a local cell2location_map of
+    // real per-sample dirs (contents symlinked) instead of writing through the staged
+    // links into CELL2LOC_MAP's work dirs, which parallel contrasts would share.
     // ct_gene_expr.py only creates CT_Gene_expr/<area> when limma runs (needs >=2 replicates
     // per condition), so make sure the output dir exists even when everything is skipped.
-    // NOTE: it also writes cell2location_map/<sample>/gene_expr_ct_mean/ through the staged
-    // symlink, i.e. into each CELL2LOC_MAP task's work dir; COMPARE_CELL2LOC_RCTD reads it from there.
     """
-    mkdir -p CT_Gene_expr
+    mkdir -p CT_Gene_expr cell2location_map
+    for s in ${samples.join(' ')}; do
+        mkdir -p cell2location_map/\$s
+        for f in c2l_in/\$s/*; do
+            [ "\$(basename \$f)" = gene_expr_ct_mean ] && continue
+            ln -s "\$(readlink -f \$f)" cell2location_map/\$s/
+        done
+    done
+
     python3 /usr/local/bin/ct_gene_expr.py \\
         --base_dir          . \\
         --out_dir           CT_Gene_expr \\
@@ -42,5 +50,6 @@ process CT_GENE_EXPR_PERCELLTYPE {
     """
     mkdir -p CT_Gene_expr/stub
     touch CT_Gene_expr/stub/ct_gene_expr.csv
+    for s in ${samples.join(' ')}; do mkdir -p cell2location_map/\$s; done
     """
 }

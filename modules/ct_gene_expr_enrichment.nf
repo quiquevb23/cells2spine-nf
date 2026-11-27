@@ -1,15 +1,15 @@
 // modules/ct_gene_expr_enrichment.nf
 process CT_GENE_EXPR_ENRICHMENT {
-    tag "GSEA/ORA - per-celltype"
+    tag "${cid} GSEA/ORA - per-celltype"
     label 'process_medium'
     container params.container_enrichment
-    publishDir "${params.outdir}/CT_Gene_expr", mode: 'copy'
+    publishDir "${params.outdir}/contrasts/${cid}/CT_Gene_expr", mode: 'copy'
 
     input:
-    path deg_dir
+    tuple val(cid), path(deg_dir)
 
     output:
-    path "FunctionalEnrichment", emit: results
+    tuple val(cid), path("FunctionalEnrichment"), emit: results
 
     script:
     """

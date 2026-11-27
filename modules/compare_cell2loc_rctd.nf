@@ -1,21 +1,20 @@
 process COMPARE_CELL2LOC_RCTD {
-    tag "compare"
+    tag "${cid}"
     // scCODA HMC (20k samples per area x method) keeps per-spot traces in RAM:
     // OOM-killed at 8 GB, so medium (8 CPU / 32 GB / 8h).
     label 'process_medium'
     container params.container_rpy2
-    publishDir "${params.outdir}/Plots/Comparisons", mode: 'copy'
+    publishDir "${params.outdir}/contrasts/${cid}/Plots/Comparisons", mode: 'copy'
 
     input:
+    // one task per pairwise contrast; all dirs are that contrast's outputs
+    tuple val(cid), val(samples), val(conditions_map), val(condition_order),
+          path(rctd_results),   // "RCTD" dir from CSIDE
+          path(cside_degs),     // "CSIDE" dir from CSIDE (for DEGs)
+          path(cell2loc_degs),  // "CT_Gene_expr" dir from CT_GENE_EXPR_PERCELLTYPE
+          path(cell2loc_map, stageAs: 'cell2location_map'),  // CT_GENE_EXPR_PERCELLTYPE's cell2location_map (per-sample dirs + gene_expr_ct_mean)
+          path(cell2loc_fe)     // "FunctionalEnrichment" dir from CT_GENE_EXPR_ENRICHMENT
     val  ref_level
-    val  samples
-    val  conditions_map
-    val  condition_order
-    path cell2loc_map, stageAs: 'cell2location_map/*'  // per-sample dirs from CELL2LOC_MAP (+ gene_expr_ct_mean from CT_GENE_EXPR_PERCELLTYPE)
-    path rctd_results     // "RCTD" dir from CSIDE
-    path cell2loc_degs    // "CT_Gene_expr" dir from CT_GENE_EXPR_PERCELLTYPE
-    path cside_degs       // "CSIDE" dir from CSIDE (for DEGs)
-    path cell2loc_fe      // "FunctionalEnrichment" dir from CT_GENE_EXPR_ENRICHMENT
     path delineation_dir  // "delineation" directory from EXTRACT_SPATIAL_INPUTS, or []
     val  areas            // params.areas list, or [] for whole-sample
 

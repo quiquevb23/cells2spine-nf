@@ -42,7 +42,7 @@ def write_coords(adata, coords_dir, sample_name):
 
 
 def write_counts(adata, counts_dir, sample_name):
-    """<counts_dir>/<sample>_counts.csv, genes x spots raw counts (read by run_masigpro.R)."""
+    """<counts_dir>/<sample>_counts.csv, genes x spots raw counts (read by masigpro_expression.R)."""
     counts = adata.layers['counts'] if 'counts' in adata.layers else adata.X
     counts = sp.csr_matrix(counts).T.tocsr()
     df = pd.DataFrame.sparse.from_spmatrix(counts, index=adata.var_names, columns=adata.obs_names)

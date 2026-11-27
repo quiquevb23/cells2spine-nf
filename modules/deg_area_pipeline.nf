@@ -1,21 +1,20 @@
+// One task per pairwise contrast, condition_order = [test, ref].
 process DEG_AREA_PIPELINE {
-    tag "${ref_level}"
+    tag "${cid}"
     label 'process_medium'
     container params.container_rpy2
-    publishDir "${params.outdir}/DEA_areas_good", mode: 'copy'
+    publishDir "${params.outdir}/contrasts/${cid}", mode: 'copy'
 
     input:
+    tuple val(cid), val(samples), val(conditions_map), val(condition_order)
     path spatial_input        // raw h5ad root: <spatial_input>/<sample>/outs/matrices/<glob>
     val  h5ad_glob
     val  ref_level
-    val  samples
-    val  conditions_map
-    val  condition_order
     path delineation_dir      // "delineation" directory, or [] when not configured
     val  regions              // params.areas list, or [] for whole-sample
 
     output:
-    path "DEA_areas_good", emit: deg_dir
+    tuple val(cid), path("DEA_areas_good"), emit: deg_dir
 
     script:
     def delin_arg   = delineation_dir ? "--delineation_dir ${delineation_dir}" : "--delineation_dir NO_DELINEATION"
