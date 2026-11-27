@@ -48,6 +48,9 @@ params.masigpro           = [:]     // {areas, gene_lists, degree, Q, alfa, rsq,
 // Derived values from sample_metadata
 // ---------------------------------------------------------------------------
 def meta            = params.sample_metadata
+if (!meta) {
+    error "params.sample_metadata is empty: pass the config with -params-file <json> (one dash; --params-file is ignored)"
+}
 def samples         = meta.collect { it.sample }
 def conditions_map  = meta.collect { "${it.sample}:${it.condition}" }
 def timepoints      = meta.collect { it.time }.findAll { it != null }.unique()
