@@ -91,7 +91,8 @@ def refOf = allConds.collectEntries { c ->
         refBy == 'pooled'    ? 'pooled' :
                                meta.find { it.condition == c }.group]
 }
-def refSets = refOf.values().unique().collectEntries { r -> [r, refOf.findAll { it.value == r }.keySet() as List] }
+// copy values() first: it is a read-only map view and unique() mutates in place
+def refSets = (refOf.values() as List).unique().collectEntries { r -> [r, refOf.findAll { it.value == r }.keySet() as List] }
 (params.reference_conditions ?: [:]).each { r, labels ->
     if (!refSets.containsKey(r)) error "reference_conditions: '${r}' is not a reference name under reference_by = ${refBy} (${refSets.keySet()})"
     refSets[r] = labels as List
