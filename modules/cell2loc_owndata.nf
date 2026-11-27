@@ -1,10 +1,12 @@
 // modules/cell2loc_owndata.nf
 //
 // cell2location is split so memory does not scale with the number of samples:
-//   CELL2LOC_REFERENCE : one job per condition — trains the RegressionModel and
-//                        exports data/reference_<cond> (conversor_ref.py) for RCTD/CSIDE
+//   CELL2LOC_REFERENCE : one job per reference (params.reference_by: one per group,
+//                        per condition, or a single 'pooled') — trains the RegressionModel
+//                        on the sc cells of its conditions and exports data/reference_<name>
+//                        (conversor_ref.py) for RCTD/CSIDE
 //   CELL2LOC_MAP       : one job per sample — Cell2location mapping with its
-//                        condition's reference signatures
+//                        reference's signatures
 // Downstream processes re-assemble the per-sample dirs as ./cell2location_map/<sample>
 // and the references as ./data/reference_<cond> via `stageAs`.
 
@@ -15,7 +17,7 @@ process CELL2LOC_REFERENCE {
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    val  condition
+    tuple val(condition), val(sc_conditions)   // reference name, sc obs['condition'] labels it pools
     path single_cell_ref
     val  ref_label
     val  masked_celltypes
@@ -29,6 +31,7 @@ process CELL2LOC_REFERENCE {
     python3 /usr/local/bin/cell2loc_owndata.py \\
         --mode reference \\
         --condition ${condition} \\
+        --ref_conditions ${sc_conditions.join(',')} \\
         --single_cell_ref ${single_cell_ref} \\
         --ref_label ${ref_label} \\
         --masked_celltypes "${masked_celltypes}" \\
@@ -37,6 +40,7 @@ process CELL2LOC_REFERENCE {
     python3 /usr/local/bin/conversor_ref.py \\
         --sc_ref_path ${single_cell_ref} --output_base_dir . \\
         --ref_label ${ref_label} --conditions ${condition} \\
+        --ref_conditions ${sc_conditions.join(',')} \\
         --masked_celltypes "${masked_celltypes}"
     """
 

@@ -19,6 +19,7 @@
     "DE_Sox5_Tac1", "DI_Npy", "DE_Rreb1", "DE_Sox5_Tac2", "DE_Cpne4_Prkcg",
     "DE_Reln", "CSF_N", "VEP_V0", "Microglia_low", "VEL_V2a_Vsx2", "junk"
   ],
+  "reference_by": "group",
   "baseline_group": "healthy",
   "group_order": ["SCI", "bPAC"],
   "sample_metadata": [

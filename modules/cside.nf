@@ -15,7 +15,8 @@ process CSIDE {
     path cell2loc_map, stageAs: 'cell2location_map/*'  // collected per-sample dirs from CELL2LOC_MAP
     path coords               // "coords" directory from EXTRACT_SPATIAL_INPUTS
     path delineation          // "delineation" directory, or empty when not configured
-    path sc_ref_data          // collected reference_<cond> dirs from CELL2LOC_REFERENCE, staged in the work dir: CSIDE.R reads <output_base_dir>/reference_<cond>
+    path sc_ref_data          // collected reference_<name> dirs from CELL2LOC_REFERENCE, staged in the work dir: CSIDE.R reads <output_base_dir>/reference_<cond>
+    val  ref_of_condition     // map condition -> reference name (params.reference_by)
 
     output:
     tuple val(cid), path("RCTD"),  emit: rctd_results
@@ -25,7 +26,14 @@ process CSIDE {
     script:
     def regions_arg = regions ? "--regions ${regions.join(',')}" : "--regions ALL_SPOTS"
     def delin_arg   = delineation ? "--delineation_dir ${delineation}" : "--delineation_dir NO_DELINEATION"
+    // CSIDE.R loads ./reference_<condition>. With reference_by group/pooled the
+    // reference is named after the group (or 'pooled'), so link each condition to it.
+    def links = condition_order
+        .findAll { c -> ref_of_condition[c] != c }
+        .collect { c -> "ln -sfn reference_${ref_of_condition[c]} reference_${c}" }
+        .join('\n    ')
     """
+    ${links}
     Rscript /usr/local/bin/CSIDE.R \\
         --ref_level         ${ref_level} \\
         --cell2loc_dir      cell2location_map \\

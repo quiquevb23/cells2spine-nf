@@ -39,6 +39,8 @@ params.sample_metadata    = []      // [{sample, condition, time, group}, ...]
 params.baseline_group     = null    // group that is the shared time zero (e.g. healthy / SHAM)
 params.group_order        = []      // series order; the first is the maSigPro reference (e.g. SCI)
 params.contrasts          = []      // [[test, ref], ...]; empty → derived from the groups
+params.reference_by       = 'group' // deconvolution references: group | condition | pooled
+params.reference_conditions = [:]   // optional override {reference name: [sc obs 'condition' labels]}
 params.run_pairwise       = true    // per-contrast CSIDE / DEG_AREA / CT_GENE_EXPR / COMPARE
 params.run_timecourse     = true    // maSigPro (needs >= 3 timepoints and a group per sample)
 params.gene_list          = null    // legacy single gene list for maSigPro expression
@@ -68,6 +70,38 @@ def areaList = params.areas ?: []
 def contrasts = deriveContrasts(meta, params.contrasts ?: [], params.baseline_group,
                                 params.group_order ?: [], params.condition_order ?: [])
 
+// Deconvolution references (cell2location signatures + RCTD/CSIDE references)
+//   group     : one per group, pooling its conditions' sc cells (paper: SHAM / CTRL / STIM,
+//               CTRL and STIM merging 10 + 30 dpi)
+//   condition : one per condition, sc cells of that condition only
+//   pooled    : a single reference from the sc cells of all conditions
+// refOf  : spatial condition -> reference name
+// refSets: reference name    -> sc obs['condition'] labels it pools
+def refBy = (params.reference_by ?: 'group').toString()
+if (refBy == 'group' && !hasGroups) {
+    log.warn "reference_by = 'group' but sample_metadata has no 'group': using one reference per condition"
+    refBy = 'condition'
+}
+if (!(refBy in ['group', 'condition', 'pooled'])) {
+    error "reference_by must be group, condition or pooled (got '${params.reference_by}')"
+}
+def allConds = meta.collect { it.condition }.unique()
+def refOf = allConds.collectEntries { c ->
+    [c, refBy == 'condition' ? c :
+        refBy == 'pooled'    ? 'pooled' :
+                               meta.find { it.condition == c }.group]
+}
+def refSets = refOf.values().unique().collectEntries { r -> [r, refOf.findAll { it.value == r }.keySet() as List] }
+(params.reference_conditions ?: [:]).each { r, labels ->
+    if (!refSets.containsKey(r)) error "reference_conditions: '${r}' is not a reference name under reference_by = ${refBy} (${refSets.keySet()})"
+    refSets[r] = labels as List
+}
+if (refBy == 'group') {
+    meta.groupBy { it.condition }.each { c, ms ->
+        if (ms.collect { it.group }.unique().size() > 1) error "condition '${c}' spans several groups; reference_by = group needs one group per condition"
+    }
+}
+
 // maSigPro options
 def mopts = params.masigpro ?: [:]
 def mo    = { String k, d -> mopts.containsKey(k) && mopts[k] != null ? mopts[k] : d }
@@ -87,6 +121,8 @@ def runTimecourse = params.run_timecourse && n_timepoints >= 3 && hasGroups
 // ---------------------------------------------------------------------------
 workflow {
 
+    log.info "Deconvolution references (reference_by = ${refBy}): " +
+        refSets.collect { r, cs -> "${r} <- sc ${cs.join('+')}" }.join(', ')
     log.info "Pairwise contrasts (test_vs_ref): " +
         (params.run_pairwise ? contrasts.collect { "${it[0]}_vs_${it[1]}" }.join(', ') : 'disabled (run_pairwise = false)')
     if (!runTimecourse) {
@@ -112,27 +148,21 @@ workflow {
         : Channel.value([])
 
     // ------------------------------------------------------------------
-    // 2. Cell2Location: reference per condition, mapping per sample
-    //    (memory per job no longer scales with the number of samples)
+    // 2. Cell2Location: one reference per refSets entry (reference_by),
+    //    mapping per sample (memory per job does not scale with sample count)
     // ------------------------------------------------------------------
-    def conditionList = params.conditions.tokenize(',').collect { it.trim() }.findAll { it }
-    def unknownConds  = meta.collect { it.condition }.unique().findAll { !(it in conditionList) }
-    if (unknownConds) {
-        error "sample_metadata uses condition(s) ${unknownConds} that are not in params.conditions (${conditionList}); " +
-              "those samples would get no cell2location reference"
-    }
-
     CELL2LOC_REFERENCE(
-        Channel.fromList(conditionList),
+        Channel.fromList(refSets.collect { r, cs -> [r, cs] }),
         file(params.single_cell_ref),
         params.ref_label,
         params.masked_celltypes
     )
 
-    // [condition, sample] joined with that condition's reference signatures
-    def sampleCondCh = Channel.fromList(meta)
-        .map { m -> tuple(m.condition, m.sample) }
-    def mapInputCh = sampleCondCh.combine(CELL2LOC_REFERENCE.out.signatures, by: 0)
+    // [reference, sample] joined with that reference's signatures; the map
+    // step gets the reference name as --condition (reference_signatures_<name>)
+    def sampleRefCh = Channel.fromList(meta)
+        .map { m -> tuple(refOf[m.condition], m.sample) }
+    def mapInputCh = sampleRefCh.combine(CELL2LOC_REFERENCE.out.signatures, by: 0)
 
     CELL2LOC_MAP(
         mapInputCh,
@@ -172,7 +202,8 @@ workflow {
             cell2locMapCh,
             EXTRACT_SPATIAL_INPUTS.out.coords,
             delineationCh,
-            scRefDataCh
+            scRefDataCh,
+            refOf
         )
         rctdWeightsCh = CSIDE.out.rctd_weights
 

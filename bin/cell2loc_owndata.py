@@ -28,7 +28,11 @@ def parse_args():
              "map: run Cell2location for ONE spatial sample")
     parser.add_argument('--output_base_dir', type=str, required=True)
     parser.add_argument('--condition', type=str, required=True,
-        help="reference: condition to train; map: condition of --sample (selects its reference)")
+        help="reference: name of the reference to train (a condition, a group or 'pooled'); "
+             "map: reference used for --sample (reads reference_signatures_<condition>)")
+    parser.add_argument('--ref_conditions', type=str, default="",
+        help="reference: comma-separated obs['condition'] labels pooled into this reference "
+             "(default: --condition itself)")
 
     # --mode reference
     parser.add_argument('--single_cell_ref', type=str)
@@ -507,13 +511,17 @@ def filter_small_celltypes(adata, celltype_col, min_cells=25):
 
 if args.mode == 'reference':
     cond = args.condition
+    ref_conds = [c.strip() for c in args.ref_conditions.split(",") if c.strip()] or [cond]
     adata_ref = sc.read(args.single_cell_ref)
-    adata_ref_cond = adata_ref[adata_ref.obs['condition'] == cond].copy()
+    missing = sorted(set(ref_conds) - set(adata_ref.obs['condition'].astype(str)))
+    if missing:
+        raise SystemExit(f"obs['condition'] has no cells for {missing} in {args.single_cell_ref} "
+                         f"(available: {sorted(adata_ref.obs['condition'].astype(str).unique())})")
+    adata_ref_cond = adata_ref[adata_ref.obs['condition'].isin(ref_conds)].copy()
     del adata_ref  # free the full multi-condition reference before training
-    if adata_ref_cond.n_obs == 0:
-        raise SystemExit(f"No cells with obs['condition'] == '{cond}' in {args.single_cell_ref}")
 
-    print(f"Condition: {cond} | ref_label: {ref_label} | masked: {masked_celltypes}")
+    print(f"Reference: {cond} = sc conditions {ref_conds} ({adata_ref_cond.n_obs} cells) | "
+          f"ref_label: {ref_label} | masked: {masked_celltypes}")
     adata_ref_cond = adata_ref_cond[~adata_ref_cond.obs[ref_label].isin(masked_celltypes)].copy()
     adata_ref_cond = filter_small_celltypes(adata_ref_cond, ref_label, min_cells=10)
     create_reference_model(adata_ref_cond, cond)

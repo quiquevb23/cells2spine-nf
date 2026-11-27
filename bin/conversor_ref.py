@@ -18,6 +18,9 @@ def parse_args():
     parser.add_argument("--output_base_dir", required=True, help="Output for files needed for RCTD")
     parser.add_argument('--ref_label', type=str, required=True)
     parser.add_argument("--conditions", help="Comma-separated list of conditions")
+    parser.add_argument("--ref_conditions", default="",
+                        help="With ONE --conditions name: comma-separated obs['condition'] labels "
+                             "pooled into data/reference_<name> (e.g. a group or 'pooled' reference)")
     parser.add_argument('--masked_celltypes', type=str, default="")
 
     return parser.parse_args()
@@ -55,7 +58,13 @@ if __name__ == "__main__":
 
     for cond in conditions:
         print(f"Found conditions: {conditions}")
-        adata_ref_cond = adata_ref[adata_ref.obs['condition'] == cond].copy()
+        ref_conds = [c.strip() for c in args.ref_conditions.split(",") if c.strip()] or [cond]
+        if len(ref_conds) > 1 and len(conditions) > 1:
+            raise SystemExit("--ref_conditions needs a single --conditions name")
+        adata_ref_cond = adata_ref[adata_ref.obs['condition'].isin(ref_conds)].copy()
+        if adata_ref_cond.n_obs == 0:
+            raise SystemExit(f"No cells with obs['condition'] in {ref_conds}")
+        print(f"reference_{cond}: sc conditions {ref_conds}, {adata_ref_cond.n_obs} cells")
         adata_ref_cond = adata_ref_cond[~adata_ref_cond.obs[ref_label].isin(masked_celltypes)].copy()
 
         reference_out_dir = os.path.join(out_dir, f"reference_{cond}")
